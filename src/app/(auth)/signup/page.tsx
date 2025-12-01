@@ -13,6 +13,7 @@ export default function SignupPage() {
   
   // Customer Form State
   const [customerData, setCustomerData] = useState({
+    name: "",
     email: "",
     phone: "",
     password: "",
@@ -36,7 +37,7 @@ export default function SignupPage() {
 
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerData.email || !customerData.password) {
+    if (!customerData.name || !customerData.email || !customerData.password) {
       toast.error("Please fill in required fields");
       return;
     }
@@ -44,6 +45,7 @@ export default function SignupPage() {
     try {
       setLoading(true);
       const response = await authApi.register({
+        name: customerData.name,
         email: customerData.email,
         phone: customerData.phone,
         password: customerData.password,
@@ -138,6 +140,17 @@ export default function SignupPage() {
 
           {activeTab === "customer" ? (
             <form onSubmit={handleCustomerSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={customerData.name}
+                  onChange={handleCustomerChange}
+                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  placeholder="Your full name"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input

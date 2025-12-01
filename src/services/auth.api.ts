@@ -7,6 +7,7 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  name?: string;
   email?: string;
   phone?: string;
   password: string;
@@ -36,10 +37,12 @@ export interface AuthResponse {
   data: {
     user: {
       id: string;
+      name?: string | null;
       email: string;
       phone: string | null;
       role: string;
       status: string;
+      lang?: string;
     };
     token: string;
     refreshToken?: string;
