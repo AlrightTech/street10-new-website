@@ -20,10 +20,11 @@ import {
 import { encryptTransform } from "redux-persist-transform-encrypt";
 
 // Ensure environment variable exists
-const reduxKey = process.env.NEXT_PUBLIC_REDUX_KEY;
-if (!reduxKey) {
-  throw new Error(
-    "NEXT_PUBLIC_REDUX_KEY is not defined in environment variables."
+// Ensure environment variable exists
+const reduxKey = process.env.NEXT_PUBLIC_REDUX_KEY || "default-secret-key";
+if (!process.env.NEXT_PUBLIC_REDUX_KEY) {
+  console.warn(
+    "NEXT_PUBLIC_REDUX_KEY is not defined in environment variables. Using default key."
   );
 }
 
