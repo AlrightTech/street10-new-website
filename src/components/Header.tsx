@@ -6,11 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-// import { useDispatch, useSelector } from "react-redux";
-// import { useRouter } from "next/navigation";
-// import { resetUser } from "@/redux/authSlice";
-// import { RootState } from "@/redux";
-// import apiClient from "@/lib/interceptor";
+import { useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
+import { resetUser } from "@/redux/authSlice";
+import { toast } from "react-hot-toast";
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w20/gb.png" },
@@ -24,8 +23,8 @@ const Header = () => {
   // const fName = useSelector((state: RootState) => state.user?.first_name);
   // const lName = useSelector((state: RootState) => state.user?.last_name);
 
-  // const dispatch = useDispatch();
-  // const router = useRouter();
+  const dispatch = useDispatch();
+  const router = useRouter();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -66,18 +65,20 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // const handleLogoutClick = async () => {
-  //   try {
-  //     const result = await apiClient.post("/user/logout");
-  //     if (result.status === 200) {
-  //       dispatch(resetUser());
-  //       router.push("/login");
-  //       localStorage.clear();
-  //     }
-  //   } catch (error) {
-  //     console.log("error", error);
-  //   }
-  // };
+  const handleLogoutClick = () => {
+    // Clear localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Reset Redux state
+    dispatch(resetUser());
+    
+    // Show success message
+    toast.success("Logged out successfully");
+    
+    // Redirect to login
+    router.push("/login");
+  };
 
   return (
     <header className="flex items-center justify-between px-6 py-3 bg-white shadow-sm ">
@@ -306,7 +307,10 @@ const Header = () => {
                   <p className="text-sm font-medium text-black">Jon Do</p>
                 </div>
               </Link>
-              <button className="flex w-full items-center justify-between rounded-md p-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-100">
+              <button 
+                onClick={handleLogoutClick}
+                className="flex w-full items-center justify-between rounded-md p-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-100"
+              >
                 <span>Logout</span>
               </button>
             </div>

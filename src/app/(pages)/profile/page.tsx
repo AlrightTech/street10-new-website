@@ -1,15 +1,36 @@
+"use client";
 import Image from "next/image";
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { toast } from "react-hot-toast";
 import { CiBookmark } from "react-icons/ci";
-
 import { FaRegUser } from "react-icons/fa";
 import { GoHistory } from "react-icons/go";
 import { LuClock9 } from "react-icons/lu";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { GoCreditCard } from "react-icons/go";
+import { resetUser } from "@/redux/authSlice";
 
 export default function Profile() {
+  const router = useRouter();
+  const dispatch = useDispatch();
+
+  const handleLogout = () => {
+    // Clear localStorage
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    
+    // Reset Redux state
+    dispatch(resetUser());
+    
+    // Show success message
+    toast.success("Logged out successfully");
+    
+    // Redirect to login
+    router.push("/login");
+  };
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* Background Image */}
@@ -90,7 +111,10 @@ export default function Profile() {
 
         {/* Sign Out Button */}
         <div className="mt-6 flex justify-end ">
-          <button className=" cursor-pointer flex items-center justify-center gap-2 bg-gray-100 text-[#666666] font-medium px-4 py-3 rounded-md hover:bg-gray-200 transition">
+          <button 
+            onClick={handleLogout}
+            className=" cursor-pointer flex items-center justify-center gap-2 bg-gray-100 text-[#666666] font-medium px-4 py-3 rounded-md hover:bg-gray-200 transition"
+          >
             Sign Out →
           </button>
         </div>
