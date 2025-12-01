@@ -40,7 +40,7 @@ export default function LoginPage() {
 
         // Redirect based on role
         if (response.data.user.role === "vendor") {
-          router.push("/dashboard"); // Or wherever vendor dashboard is
+          window.location.href = "https://street10-admin.vercel.app/dashboard";
         } else {
           router.push("/");
         }
