@@ -37,7 +37,7 @@ export default function SignupPage() {
 
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerData.name || !customerData.email || !customerData.password) {
+    if (!customerData.name || !customerData.email || !customerData.phone || !customerData.password) {
       toast.error("Please fill in required fields");
       return;
     }
@@ -52,9 +52,19 @@ export default function SignupPage() {
         provider: "email",
       });
 
-      if (response.success) {
-        toast.success("Account created! Please verify your email.");
-        router.push(`/otp2?email=${encodeURIComponent(customerData.email)}`);
+      if (response.success && response.data) {
+        toast.success("Account created successfully!");
+        // Store token and user data
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("user", JSON.stringify(response.data.user));
+        }
+        // Redirect based on role
+        if (response.data.user.role === "vendor") {
+          window.location.href = "https://street10-admin.vercel.app/dashboard";
+        } else {
+          window.location.href = "https://street10.vercel.app/";
+        }
       }
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -67,7 +77,7 @@ export default function SignupPage() {
 
   const handleVendorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vendorData.email || !vendorData.password || !vendorData.name) {
+    if (!vendorData.email || !vendorData.password || !vendorData.name || !vendorData.phone) {
       toast.error("Please fill in required fields");
       return;
     }
@@ -82,9 +92,15 @@ export default function SignupPage() {
         provider: "email",
       });
 
-      if (response.success) {
-        toast.success("Vendor account created! Please verify your email.");
-        router.push(`/otp2?email=${encodeURIComponent(vendorData.email)}`);
+      if (response.success && response.data) {
+        toast.success("Vendor account created successfully!");
+        // Store token and user data
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("user", JSON.stringify(response.data.user));
+        }
+        // Redirect vendor to admin dashboard
+        window.location.href = "https://street10-admin.vercel.app/dashboard";
       }
     } catch (error: any) {
       console.error("Vendor signup error:", error);
@@ -163,12 +179,13 @@ export default function SignupPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                 <input
                   type="text"
                   name="phone"
                   value={customerData.phone}
                   onChange={handleCustomerChange}
+                  required
                   className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
                   placeholder="+974..."
                 />
@@ -223,6 +240,7 @@ export default function SignupPage() {
                   name="phone"
                   value={vendorData.phone}
                   onChange={handleVendorChange}
+                  required
                   className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
                   placeholder="+974..."
                 />

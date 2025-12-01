@@ -88,7 +88,7 @@ export default function AuthPage() {
         if (response.data.user.role === 'vendor') {
              window.location.href = "https://street10-admin.vercel.app/dashboard";
         } else {
-             router.push("/");
+             window.location.href = "https://street10.vercel.app/";
         }
       }
     } catch (error: unknown) {
