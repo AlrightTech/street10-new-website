@@ -68,7 +68,10 @@ export default function SignupPage() {
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      const msg = error?.response?.data?.message || "Signup failed";
+      const msg =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "Signup failed";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -104,7 +107,10 @@ export default function SignupPage() {
       }
     } catch (error: any) {
       console.error("Vendor signup error:", error);
-      const msg = error?.response?.data?.message || "Signup failed";
+      const msg =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "Signup failed";
       toast.error(msg);
     } finally {
       setLoading(false);
