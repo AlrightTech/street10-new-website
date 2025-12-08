@@ -4,22 +4,14 @@ import store from "@/redux";
 import { resetUser } from "@/redux/authSlice";
 
 // Get backend URL from environment variable
-// Required: Set NEXT_PUBLIC_BASE_URL in .env.local file
+// Default to production backend - set NEXT_PUBLIC_BASE_URL in .env.local to override
 const getBaseURL = () => {
   // Priority: Use environment variable if set
   if (process.env.NEXT_PUBLIC_BASE_URL) {
     return process.env.NEXT_PUBLIC_BASE_URL;
   }
   
-  // Fallback: Try different common backend URLs
-  // Development fallback
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️ NEXT_PUBLIC_BASE_URL not set in .env.local. Using fallback URL.');
-    return "http://127.0.0.1:8000/api/v1";
-  }
-  
-  // Production fallback
-  console.warn('⚠️ NEXT_PUBLIC_BASE_URL not set. Using default production URL.');
+  // Default: Always use production backend (works everywhere)
   return "https://street10backend.up.railway.app/api/v1";
 };
 
