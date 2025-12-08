@@ -101,26 +101,14 @@ export default function BuildVendorAccountPage() {
     try {
       setLoading(true);
 
-      // Create FormData for file upload
-      const submitData = new FormData();
-      submitData.append("name", formData.businessName);
-      submitData.append("email", formData.email);
-      submitData.append("phone", formData.companyPhone);
-      submitData.append("password", formData.password || "tempPassword123"); // You might want to add password field or generate one
-      submitData.append("provider", "email");
-      
-      // Additional vendor details
-      submitData.append("contactPerson", formData.contactPerson);
-      submitData.append("contactPersonPhone", formData.contactPersonPhone);
-      submitData.append("businessAddress", formData.businessAddress);
-      submitData.append("city", formData.city);
-      submitData.append("state", formData.state);
-      submitData.append("zipCode", formData.zipCode);
-      submitData.append("country", formData.country);
-      
-      // Append files
-      submitData.append("companyRegistrationDoc", formData.companyRegistrationDoc);
-      submitData.append("commercialLicense", formData.commercialLicense);
+      // Log the request in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Submitting vendor registration:', {
+          name: formData.businessName,
+          email: formData.email,
+          phone: formData.companyPhone,
+        });
+      }
 
       // Send only the fields that the API expects (basic vendor registration)
       // Additional fields can be added later via profile update if needed
@@ -140,22 +128,41 @@ export default function BuildVendorAccountPage() {
           localStorage.setItem("user", JSON.stringify(response.data.user));
         }
         // Redirect vendor to admin dashboard
-        window.location.href = "https://street10-admin.vercel.app/dashboard";
+        const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
+        window.location.href = vendorDashboardUrl;
       }
     } catch (error: any) {
       console.error("Vendor signup error:", error);
+      console.error("Error code:", error?.code);
+      console.error("Error message:", error?.message);
       console.error("Full error response:", error?.response);
+      console.error("Request URL:", error?.config?.url);
+      console.error("Base URL:", error?.config?.baseURL);
       
       // Better error handling to show actual API error
       let errorMessage = "Account creation failed";
       
-      if (error?.response?.data) {
+      // Check for network errors
+      if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+        // Check if it's a CORS issue
+        if (error?.message?.includes('CORS') || error?.code === 'ERR_CORS') {
+          errorMessage = "CORS error: Backend server may not be configured to allow requests from this origin.";
+        } else {
+          errorMessage = `Unable to connect to server at ${error?.config?.baseURL || 'backend'}. Please check if the backend is running and accessible.`;
+        }
+      } else if (error?.code === 'ECONNREFUSED') {
+        errorMessage = "Connection refused. The backend server may be down or not accessible.";
+      } else if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED') {
+        errorMessage = "Request timeout. The server took too long to respond.";
+      } else if (error?.response?.data) {
         const errorData = error.response.data;
         errorMessage = 
           errorData?.error?.message ||
           errorData?.message ||
           errorData?.error ||
           (typeof errorData === 'string' ? errorData : errorMessage);
+      } else if (error?.response?.status) {
+        errorMessage = `Server error (${error.response.status}). Please try again later.`;
       } else if (error?.message) {
         errorMessage = error.message;
       }
