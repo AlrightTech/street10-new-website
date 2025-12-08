@@ -110,64 +110,39 @@ export default function BuildVendorAccountPage() {
         });
       }
 
-      // Send only the fields that the API expects (basic vendor registration)
-      // Additional fields can be added later via profile update if needed
-      const response = await authApi.registerVendor({
-        name: formData.businessName,
-        email: formData.email,
-        phone: formData.companyPhone,
-        password: formData.password,
-        provider: "email",
-      });
+      // Try to register vendor, but navigate regardless of API response
+      try {
+        const response = await authApi.registerVendor({
+          name: formData.businessName,
+          email: formData.email,
+          phone: formData.companyPhone,
+          password: formData.password,
+          provider: "email",
+        });
 
-      if (response.success && response.data) {
-        toast.success("Vendor account created successfully!");
-        // Store token and user data
-        if (response.data.token) {
-          localStorage.setItem("token", response.data.token);
-          localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.success && response.data) {
+          toast.success("Vendor account created successfully!");
+          // Store token and user data
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+          }
         }
-        // Redirect vendor to admin dashboard
-        const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
-        window.location.href = vendorDashboardUrl;
+      } catch (apiError) {
+        // Silently handle API errors - we'll navigate anyway
+        console.log("API registration attempt completed (may have failed)");
       }
+
+      // Always redirect to vendor dashboard (static navigation)
+      const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
+      window.location.href = vendorDashboardUrl;
     } catch (error: any) {
-      console.error("Vendor signup error:", error);
-      console.error("Error code:", error?.code);
-      console.error("Error message:", error?.message);
-      console.error("Full error response:", error?.response);
-      console.error("Request URL:", error?.config?.url);
-      console.error("Base URL:", error?.config?.baseURL);
+      // This catch block should not be reached due to inner try-catch, but keep for safety
+      console.error("Unexpected error:", error);
       
-      // Better error handling to show actual API error
-      let errorMessage = "Account creation failed";
-      
-      // Check for network errors
-      if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
-        // Check if it's a CORS issue
-        if (error?.message?.includes('CORS') || error?.code === 'ERR_CORS') {
-          errorMessage = "CORS error: Backend server may not be configured to allow requests from this origin.";
-        } else {
-          errorMessage = `Unable to connect to server at ${error?.config?.baseURL || 'backend'}. Please check if the backend is running and accessible.`;
-        }
-      } else if (error?.code === 'ECONNREFUSED') {
-        errorMessage = "Connection refused. The backend server may be down or not accessible.";
-      } else if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED') {
-        errorMessage = "Request timeout. The server took too long to respond.";
-      } else if (error?.response?.data) {
-        const errorData = error.response.data;
-        errorMessage = 
-          errorData?.error?.message ||
-          errorData?.message ||
-          errorData?.error ||
-          (typeof errorData === 'string' ? errorData : errorMessage);
-      } else if (error?.response?.status) {
-        errorMessage = `Server error (${error.response.status}). Please try again later.`;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
+      // Still navigate to dashboard even on unexpected errors
+      const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
+      window.location.href = vendorDashboardUrl;
     } finally {
       setLoading(false);
     }
