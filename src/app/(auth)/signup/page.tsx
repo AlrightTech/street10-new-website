@@ -216,7 +216,17 @@ export default function SignupPage() {
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVendorSubmit} className="space-y-4">
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              // Save vendor data to localStorage for pre-filling on next page
+              localStorage.setItem('vendorSignupData', JSON.stringify({
+                businessName: vendorData.name,
+                email: vendorData.email,
+                phone: vendorData.phone,
+                password: vendorData.password
+              }));
+              router.push('/build-vendor-account'); 
+            }} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
                 <input

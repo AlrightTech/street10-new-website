@@ -3,17 +3,23 @@ import { toast } from "react-hot-toast";
 import store from "@/redux";
 import { resetUser } from "@/redux/authSlice";
 
-// Use local backend in development, deployed backend in production
-// In development, use localhost:5000 (backend) unless NEXT_PUBLIC_BASE_URL is explicitly set
+// Get backend URL from environment variable
+// Required: Set NEXT_PUBLIC_BASE_URL in .env.local file
 const getBaseURL = () => {
+  // Priority: Use environment variable if set
   if (process.env.NEXT_PUBLIC_BASE_URL) {
     return process.env.NEXT_PUBLIC_BASE_URL;
   }
-  // In development, default to local backend
+  
+  // Fallback: Try different common backend URLs
+  // Development fallback
   if (process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ NEXT_PUBLIC_BASE_URL not set in .env.local. Using fallback URL.');
     return "http://127.0.0.1:8000/api/v1";
   }
-  // In production, use deployed backend
+  
+  // Production fallback
+  console.warn('⚠️ NEXT_PUBLIC_BASE_URL not set. Using default production URL.');
   return "https://street10backend.up.railway.app/api/v1";
 };
 
@@ -26,9 +32,10 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
 
 const apiClient = axios.create({
   baseURL,
-  withCredentials: true,
+  withCredentials: false, // Set to false to avoid CORS issues
   headers: {
     "Content-Type": "application/json",
+    "Accept": "application/json",
   },
   timeout: 30000, // 30 seconds timeout
 });
@@ -80,14 +87,14 @@ apiClient.interceptors.response.use(
     } else {
       // Network error - could be CORS, backend down, or connection issue
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        // Silently handle network errors - don't log or show toasts
-        // The components will handle empty states gracefully
-        // Only log in development with console.warn (not console.error) to avoid error overlay
+        // Don't show toast here - let the component handle it to avoid duplicates
+        // Log in development
         if (process.env.NODE_ENV === 'development') {
           console.warn("Network Error - Backend may be unavailable:", error.config?.baseURL, error.config?.url);
         }
       } else {
-        // Other errors - log as warning in development only
+        // Other errors - show toast only if not handled by component
+        // Most components handle their own errors, so we'll be conservative
         if (process.env.NODE_ENV === 'development') {
           console.warn("API Error:", error.message || error);
         }
