@@ -279,20 +279,27 @@ const Header = () => {
 
         {/* Profile */}
         <div ref={profileRef} className="relative">
-          <Link href={"/profile"}>
-            <div
-              // onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 cursor-pointer"
-            >
-              <Image
-                className="w-6 h-6 "
-                src={"/icons/profile.svg"}
-                alt={"icon"}
-                width={20}
-                height={20}
-              />
-            </div>
-          </Link>
+          <div
+            onClick={() => {
+              // Check if user is authenticated before navigating
+              const token = localStorage.getItem("token");
+              if (token) {
+                router.push("/profile");
+              } else {
+                toast.error("Please login to view your profile");
+                router.push("/login");
+              }
+            }}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 cursor-pointer"
+          >
+            <Image
+              className="w-6 h-6 "
+              src={"/icons/profile.svg"}
+              alt={"icon"}
+              width={20}
+              height={20}
+            />
+          </div>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-lg p-3 z-50">
               <Link href="#">

@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
       switch (status) {
         case 401:
           if (typeof window !== 'undefined') {
-            window.location.href = "/login2";
+            window.location.href = "/login";
             store.dispatch(resetUser());
             if (typeof localStorage !== 'undefined') {
               localStorage.clear();

@@ -24,6 +24,15 @@ export default function Profile() {
   // Fetch user profile data on mount
   useEffect(() => {
     const fetchUserData = async () => {
+      // Check if user is authenticated before making API call
+      const token = localStorage.getItem("token");
+      if (!token) {
+        // No token, redirect to login immediately
+        toast.error("Please login to view your profile");
+        router.push("/login");
+        return;
+      }
+
       try {
         setLoading(true);
         const userData = await userApi.getCurrentUser();
@@ -34,7 +43,9 @@ export default function Profile() {
           const { apiClient } = await import("@/services/api");
           const walletResponse = await apiClient.get("/wallet/balance");
           if (walletResponse.data.success && walletResponse.data.data) {
-            const balance = parseFloat(walletResponse.data.data.availableMinor || '0') / 100;
+            // The response structure is: { success: true, data: { availableMinor: "...", ... } }
+            const balanceData = walletResponse.data.data;
+            const balance = parseFloat(balanceData.availableMinor || '0') / 100;
             setWalletBalance(balance.toFixed(2));
           }
         } catch (error) {
@@ -43,10 +54,15 @@ export default function Profile() {
         }
       } catch (error: any) {
         console.error("Error fetching user data:", error);
-        toast.error(error.message || "Failed to load profile");
-        // If unauthorized, redirect to login
-        if (error.response?.status === 401) {
+        // If unauthorized or token invalid, redirect to login
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          dispatch(resetUser());
+          toast.error("Session expired. Please login again.");
           router.push("/login");
+        } else {
+          toast.error(error.message || "Failed to load profile");
         }
       } finally {
         setLoading(false);
@@ -54,7 +70,7 @@ export default function Profile() {
     };
 
     fetchUserData();
-  }, [router]);
+  }, [router, dispatch]);
 
   const handleLogout = () => {
     // Clear localStorage
