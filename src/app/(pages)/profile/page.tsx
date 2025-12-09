@@ -94,7 +94,7 @@ export default function Profile() {
       </div>
 
       {/* Profile Card */}
-      <div className=" mx-auto w-4xl p-6">
+      <div className="mx-auto max-w-2xl w-full px-6 md:px-8 lg:px-12 py-6">
         {/* Profile Image */}
         <div className="flex flex-col items-center">
           <Image
@@ -118,9 +118,9 @@ export default function Profile() {
         </div>
 
         {/* Menu List */}
-        <div className="mt-6 space-y-3">
+        <div className="mt-6 flex flex-col gap-4">
           {/* Balance */}
-          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-5 rounded-md cursor-pointer hover:bg-gray-100">
+          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-[#666666]">
               <GoCreditCard size={18} />
               <span>Balance</span>
@@ -130,7 +130,7 @@ export default function Profile() {
 
           {/* Profile Setting */}
           <Link href="/profile">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-5 rounded-md cursor-pointer hover:bg-gray-100">
+            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
               <div className="flex items-center gap-3 text-[#666666]">
                 <FaRegUser size={16} />
                 <span>Profile Setting</span>
@@ -141,7 +141,7 @@ export default function Profile() {
 
           {/* Bidding History */}
           <Link href="/bidding">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-5 rounded-md cursor-pointer hover:bg-gray-100">
+            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
               <div className="flex items-center gap-3 text-[#666666]">
                 <GoHistory size={16} />
                 <span>Bidding History</span>
@@ -152,7 +152,7 @@ export default function Profile() {
 
           {/* Order History */}
           <Link href="/order-history">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-5 rounded-md cursor-pointer hover:bg-gray-100">
+            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
               <div className="flex items-center gap-3 text-[#666666]">
                 <LuClock9 size={16} />
                 <span>Order History</span>
@@ -162,7 +162,7 @@ export default function Profile() {
           </Link>
 
           {/* Saved Items */}
-          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-5 rounded-md cursor-pointer hover:bg-gray-100">
+          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
             <div className="flex items-center gap-3 text-[#666666]">
               <CiBookmark size={16} />
               <span>Saved Items</span>
