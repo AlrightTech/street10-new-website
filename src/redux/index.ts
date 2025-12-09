@@ -19,10 +19,29 @@ import {
 } from "redux-persist";
 import { encryptTransform } from "redux-persist-transform-encrypt";
 
-// Ensure environment variable exists
+// Create a noop storage for server-side rendering
+function createNoopStorage() {
+  return {
+    getItem(_key: string) {
+      return Promise.resolve(null);
+    },
+    setItem(_key: string, value: any) {
+      return Promise.resolve(value);
+    },
+    removeItem(_key: string) {
+      return Promise.resolve();
+    },
+  };
+}
+
+// Use web storage on client, noop storage on server
+const persistStorage = typeof window !== "undefined" 
+  ? storage 
+  : createNoopStorage();
+
 // Ensure environment variable exists
 const reduxKey = process.env.NEXT_PUBLIC_REDUX_KEY || "default-secret-key";
-if (!process.env.NEXT_PUBLIC_REDUX_KEY) {
+if (!process.env.NEXT_PUBLIC_REDUX_KEY && typeof window !== "undefined") {
   console.warn(
     "NEXT_PUBLIC_REDUX_KEY is not defined in environment variables. Using default key."
   );
@@ -32,15 +51,17 @@ if (!process.env.NEXT_PUBLIC_REDUX_KEY) {
 const encryptor = encryptTransform({
   secretKey: reduxKey,
   onError: (error) => {
-    console.error("Encryption error:", error);
-    storage.removeItem("persist:root");
+    if (typeof window !== "undefined") {
+      console.error("Encryption error:", error);
+      persistStorage.removeItem("persist:root");
+    }
   },
 });
 
 // Redux-persist configuration
 const persistConfig = {
   key: "root",
-  storage,
+  storage: persistStorage,
   transforms: [encryptor],
   timeout: 2000,
   whitelist: ["user"],
