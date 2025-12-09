@@ -1,4 +1,5 @@
 import { apiClient } from "./api";
+import axios from "axios";
 
 export interface LoginRequest {
   email?: string;
@@ -50,19 +51,29 @@ export interface AuthResponse {
   message?: string;
 }
 
+// Use proxy routes to avoid CORS issues
+const proxyClient = axios.create({
+  baseURL: typeof window !== 'undefined' ? window.location.origin : '',
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  },
+  timeout: 30000,
+});
+
 export const authApi = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>("/auth/login", data);
+    const response = await proxyClient.post<AuthResponse>("/api/proxy/auth/login", data);
     return response.data;
   },
 
   register: async (data: RegisterRequest): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>("/auth/register", data);
+    const response = await proxyClient.post<AuthResponse>("/api/proxy/auth/register", data);
     return response.data;
   },
 
   registerVendor: async (data: any): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>("/auth/register-vendor", data);
+    const response = await proxyClient.post<AuthResponse>("/api/proxy/auth/register-vendor", data);
     return response.data;
   },
 

@@ -279,13 +279,13 @@ const Header = () => {
 
         {/* Profile */}
         <div ref={profileRef} className="relative">
-          <div
-            onClick={() => {
+          <Link
+            href="/profile"
+            onClick={(e) => {
               // Check if user is authenticated before navigating
               const token = localStorage.getItem("token");
-              if (token) {
-                router.push("/profile");
-              } else {
+              if (!token) {
+                e.preventDefault();
                 toast.error("Please login to view your profile");
                 router.push("/login");
               }
@@ -299,7 +299,7 @@ const Header = () => {
               width={20}
               height={20}
             />
-          </div>
+          </Link>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-lg p-3 z-50">
               <Link href="#">

@@ -11,6 +11,9 @@ import { GoHistory } from "react-icons/go";
 import { LuClock9 } from "react-icons/lu";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { GoCreditCard } from "react-icons/go";
+import { HiLanguage } from "react-icons/hi2";
+import { IoLogOutOutline } from "react-icons/io5";
+import { IoClose } from "react-icons/io5";
 import { resetUser } from "@/redux/authSlice";
 import { userApi, type User } from "@/services/user.api";
 
@@ -20,6 +23,13 @@ export default function Profile() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [walletBalance, setWalletBalance] = useState<string>("0");
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
+
+  const languages = [
+    { name: "English", flag: "https://flagcdn.com/w20/us.png", code: "en" },
+    { name: "Arabic", flag: "https://flagcdn.com/w20/sa.png", code: "ar" },
+  ];
 
   // Fetch user profile data on mount
   useEffect(() => {
@@ -31,6 +41,18 @@ export default function Profile() {
         toast.error("Please login to view your profile");
         router.push("/login");
         return;
+      }
+
+      // Try to load cached user data first
+      try {
+        const cachedUser = localStorage.getItem("user");
+        if (cachedUser) {
+          const parsedUser = JSON.parse(cachedUser);
+          setUser(parsedUser);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error parsing cached user data:", error);
       }
 
       try {
@@ -61,8 +83,12 @@ export default function Profile() {
           dispatch(resetUser());
           toast.error("Session expired. Please login again.");
           router.push("/login");
+          return;
         } else {
-          toast.error(error.message || "Failed to load profile");
+          // If we have cached user data, show it even if API fails
+          if (!user) {
+            toast.error(error.message || "Failed to load profile. Showing cached data.");
+          }
         }
       } finally {
         setLoading(false);
@@ -87,6 +113,13 @@ export default function Profile() {
     router.push("/login");
   };
 
+  const handleLanguageSelect = (language: string) => {
+    setSelectedLanguage(language);
+    setIsLanguageModalOpen(false);
+    toast.success(`Language changed to ${language}`);
+    // TODO: Save language preference to backend/localStorage
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -109,47 +142,78 @@ export default function Profile() {
         <Image src="/images/street/profile.png" alt="image" fill />
       </div>
 
-      {/* Profile Card */}
-      <div className="mx-auto max-w-2xl w-full px-6 md:px-8 lg:px-12 py-6">
-        {/* Profile Image */}
-        <div className="flex flex-col items-center">
-          <Image
-            src="/images/avatar.png"
-            alt="Profile"
-            width={90}
-            height={90}
-            className="rounded-full object-cover shadow-md"
-          />
-          <h2 className="mt-3 text-lg font-medium text-gray-800">
-            {user.name || user.email.split('@')[0]}
-          </h2>
-          <p className="text-black font-semibold">@{user.email.split('@')[0]}</p>
-          {user.customerType && (
-            <p className="text-sm text-gray-500 mt-1 capitalize">
-              {user.customerType === 'verified' ? '✓ Verified Customer' : 
-               user.customerType === 'registered' ? 'Registered Customer' : 
-               'Guest'}
-            </p>
-          )}
+      {/* Back Icon and Profile Heading - Outside white background */}
+      <div className="absolute top-0 left-0 z-10 px-4 md:px-6 pt-4 pb-2">
+        <div className="flex flex-col">
+          <button
+            onClick={() => router.back()}
+            className="p-1 hover:opacity-80 transition mb-2"
+            aria-label="Go back"
+          >
+            <Image
+              src="/images/street/back-vector.png"
+              alt="Back"
+              width={24}
+              height={24}
+              className="object-contain"
+            />
+          </button>
+          <h1 className="text-xl font-bold text-black">Profile</h1>
         </div>
+      </div>
 
-        {/* Menu List */}
-        <div className="mt-6 flex flex-col gap-4">
-          {/* Balance */}
-          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
+      {/* White Background Card */}
+      <div className="relative z-10 mx-auto max-w-6xl w-full px-4 md:px-6 py-6 mt-16">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Request Button - Top Right */}
+          <div className="flex justify-end mb-6">
+            <button className="bg-[#EE8E32] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#d87a28] transition">
+              Request
+            </button>
+          </div>
+
+          {/* Profile Image */}
+          <div className="flex flex-col items-center mb-6">
+            <Image
+              src="/images/avatar.png"
+              alt="Profile"
+              width={120}
+              height={120}
+              className="rounded-full object-cover shadow-md border-2 border-[#EE8E32]"
+            />
+            <h2 className="mt-4 text-2xl font-bold text-black">
+              {user.name || user.email.split('@')[0]}
+            </h2>
+            <p className="text-black font-semibold text-lg">@{user.email.split('@')[0]}</p>
+            {user.customerType && (
+              <p className="text-sm text-gray-500 mt-1 capitalize">
+                {user.customerType === 'verified' ? '✓ Verified Customer' : 
+                 user.customerType === 'registered' ? 'Registered Customer' : 
+                 'Guest'}
+              </p>
+            )}
+          </div>
+
+          {/* Menu List */}
+          <div className="rounded-lg overflow-hidden space-y-5">
+            {/* Balance */}
+            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
             <div className="flex items-center gap-3 text-[#666666]">
               <GoCreditCard size={18} />
               <span>Balance</span>
             </div>
-            <span className="text-[#EE8E32] font-semibold">QAR {walletBalance}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[#EE8E32] font-semibold">QAR {walletBalance}</span>
+              <MdKeyboardArrowRight color="#666666" size={20} />
+            </div>
           </div>
 
           {/* Profile Setting */}
-          <Link href="/profile">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
+          <Link href="/profile/settings">
+            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
               <div className="flex items-center gap-3 text-[#666666]">
                 <FaRegUser size={16} />
-                <span>Profile Setting</span>
+                <span>Profile settings</span>
               </div>
               <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
@@ -157,7 +221,7 @@ export default function Profile() {
 
           {/* Bidding History */}
           <Link href="/bidding">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
+            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
               <div className="flex items-center gap-3 text-[#666666]">
                 <GoHistory size={16} />
                 <span>Bidding History</span>
@@ -168,7 +232,7 @@ export default function Profile() {
 
           {/* Order History */}
           <Link href="/order-history">
-            <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
+            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
               <div className="flex items-center gap-3 text-[#666666]">
                 <LuClock9 size={16} />
                 <span>Order History</span>
@@ -178,25 +242,94 @@ export default function Profile() {
           </Link>
 
           {/* Saved Items */}
-          <div className="flex justify-between items-center bg-[#ffffff] px-4 py-4 rounded-md cursor-pointer hover:bg-gray-100 shadow-sm">
-            <div className="flex items-center gap-3 text-[#666666]">
-              <CiBookmark size={16} />
-              <span>Saved Items</span>
+          <Link href="/saved-items">
+            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
+              <div className="flex items-center gap-3 text-[#666666]">
+                <CiBookmark size={16} />
+                <span>Saved items</span>
+              </div>
+              <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
-            <MdKeyboardArrowRight color="#666666" size={20} />
+          </Link>
+
+          {/* Language */}
+          <div 
+            onClick={() => setIsLanguageModalOpen(true)}
+            className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 "
+          >
+            <div className="flex items-center gap-3 text-[#666666]">
+              <HiLanguage size={18} />
+              <span>Language</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400 text-sm">{selectedLanguage}</span>
+              <MdKeyboardArrowRight color="#666666" size={20} />
+            </div>
           </div>
         </div>
 
-        {/* Sign Out Button */}
-        <div className="mt-6 flex justify-end ">
+          {/* Sign Out Button */}
+          <div className="mt-8 flex justify-start">
           <button 
             onClick={handleLogout}
-            className=" cursor-pointer flex items-center justify-center gap-2 bg-gray-100 text-[#666666] font-medium px-4 py-3 rounded-md hover:bg-gray-200 transition"
+            className="cursor-pointer flex items-center justify-center gap-2 bg-[#EE8E32] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#d87a28] transition"
           >
-            Sign Out →
+            <span>Sign Out</span>
+            <MdKeyboardArrowRight size={18} className="text-white" />
           </button>
+          </div>
         </div>
       </div>
+
+      {/* Language Selection Modal */}
+      {isLanguageModalOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={() => setIsLanguageModalOpen(false)}
+          ></div>
+          
+          {/* Modal Content */}
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm relative">
+              {/* Close Button */}
+              <button
+                onClick={() => setIsLanguageModalOpen(false)}
+                className="absolute top-3 right-3 p-1.5 hover:bg-gray-100 rounded-full transition"
+                aria-label="Close modal"
+              >
+                <IoClose size={20} className="text-gray-600" />
+              </button>
+
+              {/* Language Options */}
+              <div className="p-6 pt-6 space-y-2">
+                {languages.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleLanguageSelect(lang.name)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 mt-6 rounded-lg transition text-left ${
+                      selectedLanguage === lang.name
+                        ? "bg-orange-100"
+                        : "bg-white hover:bg-gray-50"
+                    }`}
+                  >
+                    <Image
+                      src={lang.flag}
+                      alt={lang.name}
+                      width={24}
+                      height={24}
+                      className="rounded"
+                    />
+                    <span className="text-black font-medium">{lang.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
