@@ -162,8 +162,8 @@ export default function BuildVendorAccountPage() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-20 w-full max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-xl shadow-xl p-8 md:p-12">
+      <div className="relative z-20 w-full max-w-6xl mx-auto px-6 md:px-8 lg:px-12">
+        <div className="bg-white rounded-xl shadow-xl p-6 md:p-8 lg:p-10">
           {/* Back Arrow */}
           <button
             onClick={() => router.back()}
