@@ -40,9 +40,11 @@ export default function LoginPage() {
 
         // Redirect based on role
         if (response.data.user.role === "vendor") {
-          window.location.href = "https://street10-admin.vercel.app/dashboard";
+          // Vendor goes to admin panel (different domain)
+          window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app/dashboard";
         } else {
-          window.location.href = "https://street10.vercel.app/";
+          // Customer stays on same domain - use router
+          router.push("/");
         }
       }
     } catch (error: any) {

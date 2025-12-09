@@ -1,9 +1,9 @@
 "use client";
 import Image from "next/image";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
 import { CiBookmark } from "react-icons/ci";
 import { FaRegUser } from "react-icons/fa";
@@ -12,10 +12,49 @@ import { LuClock9 } from "react-icons/lu";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { GoCreditCard } from "react-icons/go";
 import { resetUser } from "@/redux/authSlice";
+import { userApi, type User } from "@/services/user.api";
 
 export default function Profile() {
   const router = useRouter();
   const dispatch = useDispatch();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<string>("0");
+
+  // Fetch user profile data on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const userData = await userApi.getCurrentUser();
+        setUser(userData);
+        
+        // Fetch wallet balance if available
+        try {
+          const { apiClient } = await import("@/services/api");
+          const walletResponse = await apiClient.get("/wallet/balance");
+          if (walletResponse.data.success && walletResponse.data.data) {
+            const balance = parseFloat(walletResponse.data.data.availableMinor || '0') / 100;
+            setWalletBalance(balance.toFixed(2));
+          }
+        } catch (error) {
+          console.error("Error fetching wallet balance:", error);
+          // Wallet might not be available for all users, so we don't show error
+        }
+      } catch (error: any) {
+        console.error("Error fetching user data:", error);
+        toast.error(error.message || "Failed to load profile");
+        // If unauthorized, redirect to login
+        if (error.response?.status === 401) {
+          router.push("/login");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
 
   const handleLogout = () => {
     // Clear localStorage
@@ -31,6 +70,22 @@ export default function Profile() {
     // Redirect to login
     router.push("/login");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Failed to load profile. Please try again.</p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* Background Image */}
@@ -50,9 +105,16 @@ export default function Profile() {
             className="rounded-full object-cover shadow-md"
           />
           <h2 className="mt-3 text-lg font-medium text-gray-800">
-            Farhan Ahmad
+            {user.name || user.email.split('@')[0]}
           </h2>
-          <p className="text-black font-semibold">@F.Ahmad</p>
+          <p className="text-black font-semibold">@{user.email.split('@')[0]}</p>
+          {user.customerType && (
+            <p className="text-sm text-gray-500 mt-1 capitalize">
+              {user.customerType === 'verified' ? '✓ Verified Customer' : 
+               user.customerType === 'registered' ? 'Registered Customer' : 
+               'Guest'}
+            </p>
+          )}
         </div>
 
         {/* Menu List */}
@@ -63,7 +125,7 @@ export default function Profile() {
               <GoCreditCard size={18} />
               <span>Balance</span>
             </div>
-            <span className="text-[#EE8E32] font-semibold">QAR 2000</span>
+            <span className="text-[#EE8E32] font-semibold">QAR {walletBalance}</span>
           </div>
 
           {/* Profile Setting */}

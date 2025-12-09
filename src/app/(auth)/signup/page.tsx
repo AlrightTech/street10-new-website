@@ -61,9 +61,11 @@ export default function SignupPage() {
         }
         // Redirect based on role
         if (response.data.user.role === "vendor") {
-          window.location.href = "https://street10-admin.vercel.app/dashboard";
+          // Vendor goes to admin panel (different domain)
+          window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app/dashboard";
         } else {
-          window.location.href = "https://street10.vercel.app/";
+          // Customer stays on same domain - use router
+          router.push("/");
         }
       }
     } catch (error: any) {
@@ -102,8 +104,8 @@ export default function SignupPage() {
           localStorage.setItem("token", response.data.token);
           localStorage.setItem("user", JSON.stringify(response.data.user));
         }
-        // Redirect vendor to admin dashboard
-        window.location.href = "https://street10-admin.vercel.app/dashboard";
+        // Redirect vendor to admin dashboard (different domain)
+        window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app/dashboard";
       }
     } catch (error: any) {
       console.error("Vendor signup error:", error);
