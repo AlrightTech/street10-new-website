@@ -6,6 +6,7 @@ export interface User {
   name?: string | null;
   email: string;
   phone?: string | null;
+  nickname?: string | null;
   status: string;
   role: string;
   customerType?: string | null;
