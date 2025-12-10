@@ -50,6 +50,7 @@ export default function OrderHistoryPage() {
             date: "2023-10-05",
             price: 600,
             image: "/images/cars/car-1.jpg",
+            orderId: "order-12345-1",
           },
           {
             id: "#12345",
@@ -57,6 +58,7 @@ export default function OrderHistoryPage() {
             date: "2023-10-06",
             price: 600,
             image: "/images/cars/car-1.jpg",
+            orderId: "order-12345-2",
           },
           {
             id: "#12345",
@@ -64,6 +66,7 @@ export default function OrderHistoryPage() {
             date: "2023-10-06",
             price: 600,
             image: "/images/cars/car-1.jpg",
+            orderId: "order-12345-3",
           },
           {
             id: "#12345",
@@ -71,6 +74,7 @@ export default function OrderHistoryPage() {
             date: "2023-10-06",
             price: 600,
             image: "/images/cars/car-1.jpg",
+            orderId: "order-12345-4",
           },
           {
             id: "#12345",
@@ -78,6 +82,7 @@ export default function OrderHistoryPage() {
             date: "2023-10-06",
             price: 600,
             image: "/images/cars/car-1.jpg",
+            orderId: "order-12345-5",
           },
         ]);
       } finally {
