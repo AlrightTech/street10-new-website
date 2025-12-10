@@ -53,15 +53,15 @@ export default function SavedItemsPage() {
   // Transform data to car format
   const cars = selectedFilter === "Cars" 
     ? auctions.map((auction) => {
-        const price = parseFloat(auction.currentBidMinor || "0") / 100;
+        const price = parseFloat(auction.currentBid?.amountMinor || "0") / 100;
         return {
           id: auction.id,
-          src: auction.media?.[0]?.url || "/images/cars/car-1.jpg",
-          title: auction.title || "Mercedes car",
+          src: auction.product?.media?.[0]?.url || "/images/cars/car-1.jpg",
+          title: auction.product?.title || "Mercedes car",
           price: `${price.toLocaleString()} QAR`,
           specs: [
-            auction.mileage ? `${auction.mileage} KM` : "113.000 KM",
-            auction.transmission || "Automatics",
+            "113.000 KM",
+            "Automatics",
             "Spare Parts",
           ],
           brand: "Mercedes car",
