@@ -96,7 +96,7 @@ export default function ProfileSettings() {
   const handleCancel = () => {
     // Reset form to original data
     setFormData(originalData);
-    toast.info("Changes cancelled");
+    toast("Changes cancelled", { icon: "ℹ️" });
   };
 
   const handleSaveChanges = async () => {
@@ -153,7 +153,7 @@ export default function ProfileSettings() {
       </div>
 
       {/* Main Content Card */}
-      <div className="relative z-10 mx-auto max-w-2xl w-full px-4 md:px-6 py-6">
+      <div className="relative z-10 mx-auto max-w-2xl w-full px-4 md:px-6 py-6 mt-24">
         <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 space-y-6 w-full">
           {/* Name Field */}
           <div>

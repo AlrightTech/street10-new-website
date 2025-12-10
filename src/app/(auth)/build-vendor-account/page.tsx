@@ -10,6 +10,7 @@ export default function BuildVendorAccountPage() {
   const [loading, setLoading] = useState(false);
   const companyRegFileInputRef = useRef<HTMLInputElement>(null);
   const commercialLicenseFileInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     // Basic Info
@@ -28,6 +29,7 @@ export default function BuildVendorAccountPage() {
     // Documents
     companyRegistrationDoc: null as File | null,
     commercialLicense: null as File | null,
+    image: null as File | null,
     // Password (needed for registration)
     password: "",
   });
@@ -59,7 +61,7 @@ export default function BuildVendorAccountPage() {
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: "companyRegistrationDoc" | "commercialLicense"
+    field: "companyRegistrationDoc" | "commercialLicense" | "image"
   ) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -377,7 +379,7 @@ export default function BuildVendorAccountPage() {
             <div className="space-y-4">
               {/* Company Registration Doc */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="companyRegDoc" className="block text-sm font-medium text-gray-700 mb-2">
                   Attach Company registration Doc
                 </label>
                 <div
@@ -385,11 +387,13 @@ export default function BuildVendorAccountPage() {
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#ee8e31] transition-colors bg-gray-50"
                 >
                   <input
+                    id="companyRegDoc"
                     ref={companyRegFileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onChange={(e) => handleFileChange(e, "companyRegistrationDoc")}
                     className="hidden"
+                    aria-label="Upload Company registration Doc"
                   />
                   <div className="flex flex-col items-center justify-center">
                     {/* Cloud Upload Icon */}
@@ -417,7 +421,7 @@ export default function BuildVendorAccountPage() {
 
               {/* Commercial License */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="commercialLicense" className="block text-sm font-medium text-gray-700 mb-2">
                   Attach Commercial license
                 </label>
                 <div
@@ -425,11 +429,13 @@ export default function BuildVendorAccountPage() {
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#ee8e31] transition-colors bg-gray-50"
                 >
                   <input
+                    id="commercialLicense"
                     ref={commercialLicenseFileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onChange={(e) => handleFileChange(e, "commercialLicense")}
                     className="hidden"
+                    aria-label="Upload Commercial license"
                   />
                   <div className="flex flex-col items-center justify-center">
                     {/* Cloud Upload Icon */}
@@ -451,6 +457,57 @@ export default function BuildVendorAccountPage() {
                         ? formData.commercialLicense.name
                         : "Upload Commercial license"}
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label htmlFor="imageUpload" className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Image
+                </label>
+                <div
+                  onClick={() => imageFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#ee8e31] transition-colors bg-gray-50"
+                >
+                  <input
+                    id="imageUpload"
+                    ref={imageFileInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.gif,.webp"
+                    onChange={(e) => handleFileChange(e, "image")}
+                    className="hidden"
+                    aria-label="Upload Image"
+                  />
+                  <div className="flex flex-col items-center justify-center">
+                    {/* Cloud Upload Icon */}
+                    <svg
+                      className="w-12 h-12 mb-3 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-gray-600 font-medium">
+                      {formData.image
+                        ? formData.image.name
+                        : "Upload Image"}
+                    </p>
+                    {formData.image && (
+                      <div className="mt-4">
+                        <img
+                          src={URL.createObjectURL(formData.image)}
+                          alt="Preview"
+                          className="max-w-full max-h-48 rounded-lg object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
