@@ -1,10 +1,12 @@
 import { apiClient } from "./api";
+import axios from "axios";
 
 export interface User {
   id: string;
   name?: string | null;
   email: string;
   phone?: string | null;
+  nickname?: string | null;
   status: string;
   role: string;
   customerType?: string | null;
@@ -19,15 +21,43 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Use proxy routes to avoid CORS issues
+const proxyClient = axios.create({
+  baseURL: typeof window !== 'undefined' ? window.location.origin : '',
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+  },
+  timeout: 30000,
+});
+
+// Add auth token interceptor for proxy client
+proxyClient.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error instanceof Error ? error : new Error(error));
+  }
+);
+
 export const userApi = {
   /**
    * Get current user profile
    */
   getCurrentUser: async (): Promise<User> => {
-    const response = await apiClient.get<ApiResponse<{ user: User }>>("/users/me");
+    const response = await proxyClient.get<ApiResponse<{ user: User }>>("/api/proxy/users/me");
     if (response.data.success && response.data.data?.user) {
       // Update localStorage
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem("user", JSON.stringify(response.data.data.user));
+      }
       return response.data.data.user;
     }
     throw new Error(response.data.message || "Failed to fetch user profile");
