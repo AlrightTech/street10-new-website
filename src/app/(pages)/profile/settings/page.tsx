@@ -97,6 +97,8 @@ export default function ProfileSettings() {
     // Reset form to original data
     setFormData(originalData);
     toast("Changes cancelled", { icon: "ℹ️" });
+    // Redirect to profile page
+    router.push("/profile");
   };
 
   const handleSaveChanges = async () => {
@@ -109,6 +111,8 @@ export default function ProfileSettings() {
       // Update original data
       setOriginalData(formData);
       toast.success("Changes saved successfully");
+      // Redirect to profile page after saving
+      router.push("/profile");
     } catch (error: any) {
       console.error("Error saving changes:", error);
       toast.error(error.message || "Failed to save changes");

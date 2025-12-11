@@ -12,6 +12,7 @@ import { LuClock9 } from "react-icons/lu";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { GoCreditCard } from "react-icons/go";
 import { HiLanguage } from "react-icons/hi2";
+import { HiCheckCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import { HiOutlineDotsVertical } from "react-icons/hi";
@@ -380,15 +381,24 @@ export default function Profile() {
           </div>
         </div>
 
-          {/* Sign Out Button */}
-          <div className="mt-8 flex justify-start">
-          <button 
-            onClick={handleLogout}
-            className="cursor-pointer flex items-center justify-center gap-2 bg-[#EE8E32] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#d87a28] transition"
-          >
-            <span>Sign Out</span>
-            <MdKeyboardArrowRight size={18} className="text-white" />
-          </button>
+          {/* Sign Out and Get Verified Buttons */}
+          <div className="mt-8 flex justify-between">
+            <button 
+              onClick={handleLogout}
+              className="cursor-pointer flex items-center justify-center gap-2 bg-[#EE8E32] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#d87a28] transition"
+            >
+              <span>Sign Out</span>
+              <MdKeyboardArrowRight size={18} className="text-white" />
+            </button>
+            <button 
+              onClick={() => {
+                router.push("/upload-cnic");
+              }}
+              className="cursor-pointer flex items-center justify-center gap-2 bg-white border border-[#EE8E32] text-[#EE8E32] font-medium px-6 py-3 rounded-lg hover:bg-orange-50 transition"
+            >
+              <span>Get Verified</span>
+              <HiCheckCircle size={18} className="text-[#EE8E32]" />
+            </button>
           </div>
         </div>
       </div>

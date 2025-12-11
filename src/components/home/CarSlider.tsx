@@ -12,7 +12,9 @@ import {
 } from "react-icons/md";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
+import VerificationModal from "../ui/VerificationModal";
 import { homeApi } from "@/services/home.api";
 import type { Auction } from "@/services/auction.api";
 
@@ -61,10 +63,13 @@ const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
 };
 
 function CarSlider() {
+  const router = useRouter();
   const [prevEl, setPrevEl] = useState<HTMLDivElement | null>(null);
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -102,6 +107,43 @@ function CarSlider() {
 
     fetchAuctions();
   }, []);
+
+  // Check if user is verified
+  const checkVerification = (carId: string) => {
+    if (typeof window === 'undefined') return false;
+    
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsVerificationModalOpen(true);
+      return false;
+    }
+
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.customerType !== 'verified') {
+          setSelectedCarId(carId);
+          setIsVerificationModalOpen(true);
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.error("Error parsing user:", error);
+      }
+    }
+    
+    setSelectedCarId(carId);
+    setIsVerificationModalOpen(true);
+    return false;
+  };
+
+  const handleCarClick = (e: React.MouseEvent, carId: string) => {
+    e.preventDefault();
+    if (checkVerification(carId)) {
+      router.push(`/car-preview?id=${carId}&type=auction`);
+    }
+  };
 
   // Transform auction data to match the car format
   const cars = auctions.map((auction) => {
@@ -175,8 +217,8 @@ function CarSlider() {
           ) : cars.length > 0 ? (
             cars.map((car, index) => (
               <SwiperSlide key={car.id || index}>
-                <Link
-                  href={`/car-preview?id=${car.id}&type=auction`}
+                <div
+                  onClick={(e) => handleCarClick(e, car.id)}
                   className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
                 >
                   {/* Image Section */}
@@ -253,7 +295,7 @@ function CarSlider() {
                       ))}
                     </div>
                   </div>
-                </Link>
+                </div>
               </SwiperSlide>
             ))
           ) : (
@@ -289,6 +331,12 @@ function CarSlider() {
           </button>
         </Link>
       </div>
+
+      {/* Verification Modal */}
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+      />
     </>
   );
 }

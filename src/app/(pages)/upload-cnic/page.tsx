@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { FiUpload, FiX } from "react-icons/fi";
+import ApprovalModal from "@/components/ui/ApprovalModal";
 
 export default function UploadCNICPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function UploadCNICPage() {
   const [loading, setLoading] = useState(false);
   const [frontSideFile, setFrontSideFile] = useState<File | null>(null);
   const [backSideFile, setBackSideFile] = useState<File | null>(null);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -74,8 +76,8 @@ export default function UploadCNICPage() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      toast.success("CNIC uploaded successfully! Your verification is under review.");
-      router.push("/profile");
+      // Show approval modal instead of redirecting
+      setIsApprovalModalOpen(true);
     } catch (error: any) {
       console.error("Error uploading CNIC:", error);
       toast.error(error.message || "Failed to upload CNIC. Please try again.");
@@ -269,6 +271,15 @@ export default function UploadCNICPage() {
           </form>
         </div>
       </div>
+
+      {/* Approval Modal */}
+      <ApprovalModal
+        isOpen={isApprovalModalOpen}
+        onClose={() => {
+          setIsApprovalModalOpen(false);
+          router.push("/profile");
+        }}
+      />
     </div>
   );
 }
