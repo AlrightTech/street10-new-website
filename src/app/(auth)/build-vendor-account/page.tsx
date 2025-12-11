@@ -69,6 +69,16 @@ export default function BuildVendorAccountPage() {
     }
   };
 
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -103,48 +113,64 @@ export default function BuildVendorAccountPage() {
     try {
       setLoading(true);
 
-      // Log the request in development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Submitting vendor registration:', {
-          name: formData.businessName,
-          email: formData.email,
-          phone: formData.companyPhone,
-        });
-      }
+      // Convert files to base64
+      const companyRegDocBase64 = await fileToBase64(formData.companyRegistrationDoc);
+      const commercialLicenseBase64 = await fileToBase64(formData.commercialLicense);
+      const profileImageBase64 = formData.image ? await fileToBase64(formData.image) : null;
 
-      // Try to register vendor, but navigate regardless of API response
-      try {
-        const response = await authApi.registerVendor({
-          name: formData.businessName,
-          email: formData.email,
-          phone: formData.companyPhone,
-          password: formData.password,
-          provider: "email",
-        });
+      // Prepare companyDocs object with document URLs (base64 for now)
+      const companyDocs = {
+        companyRegistrationDoc: {
+          url: companyRegDocBase64,
+          name: formData.companyRegistrationDoc.name,
+          type: formData.companyRegistrationDoc.type,
+        },
+        commercialLicense: {
+          url: commercialLicenseBase64,
+          name: formData.commercialLicense.name,
+          type: formData.commercialLicense.type,
+        },
+      };
 
-        if (response.success && response.data) {
-          toast.success("Vendor account created successfully!");
-          // Store token and user data
-          if (response.data.token) {
-            localStorage.setItem("token", response.data.token);
-            localStorage.setItem("user", JSON.stringify(response.data.user));
-          }
+      // Register vendor with all business details
+      const response = await authApi.registerVendor({
+        name: formData.businessName,
+        email: formData.email,
+        phone: formData.companyPhone,
+        password: formData.password,
+        provider: "email",
+        // Business details
+        contactPerson: formData.contactPerson,
+        contactPersonPhone: formData.contactPersonPhone,
+        businessAddress: formData.businessAddress,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country,
+        // Documents
+        companyDocs: companyDocs,
+        ownerIdUrl: null, // Can be added later if needed
+        profileImageUrl: profileImageBase64,
+      });
+
+      if (response.success && response.data) {
+        toast.success("Vendor account created successfully!");
+        // Store token and user data
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+          localStorage.setItem("user", JSON.stringify(response.data.user));
         }
-      } catch (apiError) {
-        // Silently handle API errors - we'll navigate anyway
-        console.log("API registration attempt completed (may have failed)");
+        // Redirect to vendor dashboard
+        const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+        window.location.href = `${baseUrl}/dashboard`;
       }
-
-      // Always redirect to vendor dashboard (static navigation)
-      const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-      window.location.href = `${baseUrl}/dashboard`;
     } catch (error: any) {
-      // This catch block should not be reached due to inner try-catch, but keep for safety
-      console.error("Unexpected error:", error);
-      
-      // Still navigate to dashboard even on unexpected errors
-      const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-      window.location.href = `${baseUrl}/dashboard`;
+      console.error("Vendor registration error:", error);
+      const msg =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        "Vendor registration failed";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
