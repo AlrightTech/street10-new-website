@@ -27,6 +27,7 @@ function CategoriesSlider({
 }: CategoriesSliderProps) {
   const [prevEl, setPrevEl] = useState<HTMLDivElement | null>(null);
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
+  const [swiperInstance, setSwiperInstance] = useState<SwiperType | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -52,13 +53,38 @@ function CategoriesSlider({
         title: cat.name,
       }))
     : propCategory || [];
+
+  const handlePrev = () => {
+    if (swiperInstance) {
+      swiperInstance.slidePrev();
+    }
+  };
+
+  const handleNext = () => {
+    if (swiperInstance) {
+      swiperInstance.slideNext();
+    }
+  };
+
   return (
     <div className="relative w-full">
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center gap-3">
+        {/* Left Arrow */}
+        <div
+          ref={setPrevEl}
+          onClick={handlePrev}
+          className="cursor-pointer bg-white shadow-md rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-100 transition flex-shrink-0 mb-10"
+        >
+          <MdOutlineKeyboardArrowLeft size={18} className="text-[#3B3E9E]" />
+        </div>
+
         <Swiper
           modules={[Navigation]}
           slidesPerView={5}
           spaceBetween={1}
+          onSwiper={(swiper) => {
+            setSwiperInstance(swiper);
+          }}
           breakpoints={{
             320: { slidesPerView: 2 },
             640: { slidesPerView: 3 },
@@ -75,7 +101,7 @@ function CategoriesSlider({
               swiper.params.navigation.nextEl = nextEl;
             }
           }}
-          className="w-200"
+          className="w-200 flex-1"
         >
           {category.map((item, idx) => (
             <SwiperSlide key={idx}>
@@ -100,20 +126,13 @@ function CategoriesSlider({
           ))}
         </Swiper>
 
-        {/* Arrows */}
-        <div className="flex items-center gap-3 ml-4">
-          <div
-            ref={setPrevEl}
-            className="cursor-pointer bg-white shadow-md rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-100 transition"
-          >
-            <MdOutlineKeyboardArrowLeft size={18} className="text-[#3B3E9E]" />
-          </div>
-          <div
-            ref={setNextEl}
-            className="cursor-pointer bg-white shadow-md rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-100 transition"
-          >
-            <MdKeyboardArrowRight size={18} className="text-[#3B3E9E]" />
-          </div>
+        {/* Right Arrow */}
+        <div
+          ref={setNextEl}
+          onClick={handleNext}
+          className="cursor-pointer bg-white shadow-md rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-100 transition flex-shrink-0 mb-10"
+        >
+          <MdKeyboardArrowRight size={18} className="text-[#3B3E9E]" />
         </div>
       </div>
     </div>

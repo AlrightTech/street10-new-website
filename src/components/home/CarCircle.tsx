@@ -77,6 +77,7 @@ const stories: Story[] = [
 function CarCircle() {
   const prevRef = useRef<HTMLDivElement | null>(null);
   const nextRef = useRef<HTMLDivElement | null>(null);
+  const [swiperInstance, setSwiperInstance] = useState<SwiperType | null>(null);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
 
@@ -89,25 +90,42 @@ function CarCircle() {
     setIsStoryViewerOpen(false);
   };
 
+  const handlePrev = () => {
+    if (swiperInstance) {
+      swiperInstance.slidePrev();
+    }
+  };
+
+  const handleNext = () => {
+    if (swiperInstance) {
+      swiperInstance.slideNext();
+    }
+  };
+
   return (
     <>
-      <div className="w-full relative px-26 pb-10">
+      <div className="w-full relative px-4 md:px-8 lg:px-12 pb-10">
         <div
           ref={prevRef}
-          className="absolute left-33 top-1/3 -translate-y-1/2 z-10 cursor-pointer bg-[#ffffff] rounded-full h-6 w-6 pt-[2px] ps-[2px] "
+          onClick={handlePrev}
+          className="absolute left-0 md:left-4 top-[65px] -translate-y-1/2 z-10 cursor-pointer bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md hover:bg-gray-100 transition"
         >
-          <MdOutlineKeyboardArrowLeft size={20} />
+          <MdOutlineKeyboardArrowLeft size={20} className="text-gray-700" />
         </div>
 
         <div
           ref={nextRef}
-          className="absolute right-33 top-1/3 -translate-y-1/2 z-10 cursor-pointer bg-[#ffffff] rounded-full h-6 w-6  pt-[2px] ps-[2px]"
+          onClick={handleNext}
+          className="absolute right-0 md:right-4 top-[65px] -translate-y-1/2 z-10 cursor-pointer bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md hover:bg-gray-100 transition"
         >
-          <MdKeyboardArrowRight size={20} />
+          <MdKeyboardArrowRight size={20} className="text-gray-700" />
         </div>
         <Swiper
           modules={[Navigation]}
           spaceBetween={1}
+          onSwiper={(swiper) => {
+            setSwiperInstance(swiper);
+          }}
           navigation={{
             prevEl: prevRef.current,
             nextEl: nextRef.current,
