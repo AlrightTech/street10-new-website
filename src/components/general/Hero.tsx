@@ -51,7 +51,7 @@ function Hero() {
           </Link>
           
           <button 
-            onClick={() => setIsVerificationModalOpen(true)}
+            onClick={() => router.push("/upload-cnic")}
             className="w-[180px] h-[48px] border-2 border-[#EE8E32] bg-transparent cursor-pointer transition px-8 py-3 rounded-lg text-[#EE8E32] font-semibold flex items-center justify-center hover:bg-[#EE8E32] hover:text-white"
           >
             Get Verified

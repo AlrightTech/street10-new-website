@@ -1,10 +1,11 @@
 "use client";
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { authApi } from "@/services/auth.api";
 import Link from "next/link";
+import { FiUpload, FiX } from "react-icons/fi";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [showCustomerPassword, setShowCustomerPassword] = useState(false);
   const [showVendorPassword, setShowVendorPassword] = useState(false);
+  const customerImageInputRef = useRef<HTMLInputElement>(null);
   
   // Customer Form State
   const [customerData, setCustomerData] = useState({
@@ -19,6 +21,7 @@ export default function SignupPage() {
     email: "",
     phone: "",
     password: "",
+    image: null as File | null,
   });
 
   // Vendor Form State
@@ -31,6 +34,33 @@ export default function SignupPage() {
 
   const handleCustomerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomerData({ ...customerData, [e.target.name]: e.target.value });
+  };
+
+  const handleCustomerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please upload PNG or JPG files only");
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size should be less than 5MB");
+        return;
+      }
+
+      setCustomerData({ ...customerData, image: file });
+    }
+  };
+
+  const removeCustomerImage = () => {
+    setCustomerData({ ...customerData, image: null });
+    if (customerImageInputRef.current) {
+      customerImageInputRef.current.value = "";
+    }
   };
 
   const handleVendorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,6 +259,58 @@ export default function SignupPage() {
                       </svg>
                     )}
                   </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Upload Image</label>
+                <div
+                  onClick={() => customerImageInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                    customerData.image
+                      ? "border-green-300 bg-green-50"
+                      : "border-gray-300 bg-gray-50 hover:border-[#ee8e31] hover:bg-orange-50"
+                  }`}
+                >
+                  <input
+                    ref={customerImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleCustomerImageChange}
+                    className="hidden"
+                  />
+                  
+                  {customerData.image ? (
+                    <div className="space-y-3">
+                      <div className="relative inline-block">
+                        <img
+                          src={URL.createObjectURL(customerData.image)}
+                          alt="Preview"
+                          className="max-h-32 mx-auto rounded-lg object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeCustomerImage();
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition"
+                        >
+                          <FiX size={16} />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-600">{customerData.image.name}</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <FiUpload className="w-8 h-8 mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-600 font-medium mb-1">
+                        Click to upload image
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        PNG, JPG up to 5MB
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <button
