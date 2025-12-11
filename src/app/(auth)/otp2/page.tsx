@@ -87,7 +87,8 @@ export default function AuthPage() {
         
         if (response.data.user.role === 'vendor') {
              // Vendor goes to admin panel (different domain)
-             window.location.href = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app/dashboard";
+             const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+             window.location.href = `${baseUrl}/dashboard`;
         } else {
              // Customer stays on same domain - use router
              router.push("/");

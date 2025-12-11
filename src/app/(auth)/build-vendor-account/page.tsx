@@ -134,15 +134,15 @@ export default function BuildVendorAccountPage() {
       }
 
       // Always redirect to vendor dashboard (static navigation)
-      const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
-      window.location.href = vendorDashboardUrl;
+      const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+      window.location.href = `${baseUrl}/dashboard`;
     } catch (error: any) {
       // This catch block should not be reached due to inner try-catch, but keep for safety
       console.error("Unexpected error:", error);
       
       // Still navigate to dashboard even on unexpected errors
-      const vendorDashboardUrl = process.env.NEXT_PUBLIC_VENDOR_DASHBOARD_URL || "https://street10-admin.vercel.app/dashboard";
-      window.location.href = vendorDashboardUrl;
+      const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+      window.location.href = `${baseUrl}/dashboard`;
     } finally {
       setLoading(false);
     }
