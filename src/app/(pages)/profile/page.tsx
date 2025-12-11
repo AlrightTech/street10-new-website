@@ -288,19 +288,29 @@ export default function Profile() {
           {/* Profile Image */}
           <div className="flex flex-col items-center mb-6">
             <Image
-              src="/images/avatar.png"
+              src={user.profileImageUrl || `/images/avatar.png`}
               alt="Profile"
               width={120}
               height={120}
               className="rounded-full object-cover shadow-md border-2 border-[#EE8E32]"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = `/images/avatar.png`;
+              }}
             />
             <h2 className="mt-4 text-2xl font-bold text-black">
               {user.name || user.email.split('@')[0]}
             </h2>
             <p className="text-black font-semibold text-lg">@{user.email.split('@')[0]}</p>
             {user.customerType && (
-              <p className="text-sm text-gray-500 mt-1 capitalize">
+              <p className={`text-sm mt-1 capitalize font-medium ${
+                user.customerType === 'verified' ? 'text-green-600' : 
+                user.customerType === 'verification_pending' ? 'text-yellow-600' :
+                user.customerType === 'registered' ? 'text-blue-600' : 
+                'text-gray-500'
+              }`}>
                 {user.customerType === 'verified' ? '✓ Verified Customer' : 
+                 user.customerType === 'verification_pending' ? '⏳ Verification Pending' :
                  user.customerType === 'registered' ? 'Registered Customer' : 
                  'Guest'}
               </p>

@@ -27,6 +27,28 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
   // 0=normal images, 1=red preview, 2=number plate preview, 3=back to normal after bid
 
   const handlePlaceBid = async () => {
+    // Check if user is verified
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.customerType !== 'verified') {
+            // Show verification required message
+            alert("Please verify your account first to place bids. You will be redirected to the verification page.");
+            window.location.href = "/upload-cnic";
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing user:", error);
+        }
+      } else {
+        alert("Please login to place bids");
+        window.location.href = "/login";
+        return;
+      }
+    }
+
     setLoading(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));

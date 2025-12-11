@@ -7,6 +7,7 @@ export interface User {
   email: string;
   phone?: string | null;
   nickname?: string | null;
+  profileImageUrl?: string | null;
   status: string;
   role: string;
   customerType?: string | null;

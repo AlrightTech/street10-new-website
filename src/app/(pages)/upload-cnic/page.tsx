@@ -67,14 +67,43 @@ export default function UploadCNICPage() {
 
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      // const formData = new FormData();
-      // formData.append("frontSide", frontSideFile);
-      // formData.append("backSide", backSideFile);
-      // await apiClient.post("/users/verify-cnic", formData);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Convert files to base64
+      const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (reader.result) {
+              resolve(reader.result as string);
+            } else {
+              reject(new Error('Failed to read file'));
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      };
+
+      const frontSideBase64 = await fileToBase64(frontSideFile);
+      const backSideBase64 = await fileToBase64(backSideFile);
+
+      // Submit KYC documents
+      const { kycApi } = await import("@/services/kyc.api");
+      const result = await kycApi.submitKYC([frontSideBase64, backSideBase64]);
+      
+      // Update user data in localStorage
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          user.customerType = 'verification_pending';
+          localStorage.setItem("user", JSON.stringify(user));
+        } catch (error) {
+          console.error("Error updating user data:", error);
+        }
+      }
+      
+      toast.success("CNIC documents submitted successfully! Verification pending.");
       
       // Show approval modal instead of redirecting
       setIsApprovalModalOpen(true);

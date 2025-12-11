@@ -32,6 +32,27 @@ export default function IncreaseBidPage() {
   };
 
   const handleIncreaseBid = async () => {
+    // Check if user is verified
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.customerType !== 'verified') {
+            toast.error("Please verify your account first to place bids");
+            router.push("/upload-cnic");
+            return;
+          }
+        } catch (error) {
+          console.error("Error parsing user:", error);
+        }
+      } else {
+        toast.error("Please login to place bids");
+        router.push("/login");
+        return;
+      }
+    }
+
     const amount = customAmount ? parseInt(customAmount) : selectedAmount;
     
     if (!amount) {
@@ -62,7 +83,13 @@ export default function IncreaseBidPage() {
       }
     } catch (error: any) {
       console.error("Error increasing bid:", error);
-      toast.error(error.message || "Failed to increase bid");
+      const errorMessage = error?.response?.data?.message || error.message || "Failed to increase bid";
+      if (errorMessage.includes("verified") || errorMessage.includes("verification")) {
+        toast.error("Please verify your account first to place bids");
+        router.push("/upload-cnic");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

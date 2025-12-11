@@ -76,11 +76,30 @@ export default function SignupPage() {
 
     try {
       setLoading(true);
+      
+      // Convert image to base64 if provided
+      let profileImageUrl: string | undefined = undefined;
+      if (customerData.image) {
+        const reader = new FileReader();
+        profileImageUrl = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => {
+            if (reader.result) {
+              resolve(reader.result as string);
+            } else {
+              reject(new Error('Failed to read image'));
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(customerData.image!);
+        });
+      }
+
       const response = await authApi.register({
         name: customerData.name,
         email: customerData.email,
         phone: customerData.phone,
         password: customerData.password,
+        profileImageUrl,
         provider: "email",
       });
 
