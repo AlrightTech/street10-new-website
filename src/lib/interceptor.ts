@@ -11,7 +11,7 @@ const getBaseURL = () => {
     return process.env.NEXT_PUBLIC_BASE_URL;
   }
   
-  // Default: Always use production backend (works everywhere)
+  // Default: Always use production backend 
   return "https://street10backend.up.railway.app/api/v1";
 };
 
