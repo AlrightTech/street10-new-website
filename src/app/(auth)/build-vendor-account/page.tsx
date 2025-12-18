@@ -211,21 +211,22 @@ export default function BuildVendorAccountPage() {
       setLoading(true);
 
       // Convert files to base64
-      const companyRegDocBase64 = await fileToBase64(formData.companyRegistrationDoc);
-      const commercialLicenseBase64 = await fileToBase64(formData.commercialLicense);
+      // These are guaranteed to be non-null due to validation above
+      const companyRegDocBase64 = await fileToBase64(formData.companyRegistrationDoc!);
+      const commercialLicenseBase64 = await fileToBase64(formData.commercialLicense!);
       const profileImageBase64 = formData.image ? await fileToBase64(formData.image) : null;
 
       // Prepare companyDocs object with document URLs (base64 for now)
       const companyDocs = {
         companyRegistrationDoc: {
           url: companyRegDocBase64,
-          name: formData.companyRegistrationDoc.name,
-          type: formData.companyRegistrationDoc.type,
+          name: formData.companyRegistrationDoc!.name,
+          type: formData.companyRegistrationDoc!.type,
         },
         commercialLicense: {
           url: commercialLicenseBase64,
-          name: formData.commercialLicense.name,
-          type: formData.commercialLicense.type,
+          name: formData.commercialLicense!.name,
+          type: formData.commercialLicense!.type,
         },
       };
 
