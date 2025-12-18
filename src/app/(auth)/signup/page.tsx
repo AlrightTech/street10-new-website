@@ -24,6 +24,14 @@ export default function SignupPage() {
     image: null as File | null,
   });
 
+  // Customer Form Errors
+  const [customerErrors, setCustomerErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
+
   // Vendor Form State
   const [vendorData, setVendorData] = useState({
     name: "", // Business Name
@@ -32,8 +40,21 @@ export default function SignupPage() {
     password: "",
   });
 
+  // Vendor Form Errors
+  const [vendorErrors, setVendorErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+  });
+
   const handleCustomerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomerData({ ...customerData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setCustomerData({ ...customerData, [name]: value });
+    // Clear error when user starts typing
+    if (customerErrors[name as keyof typeof customerErrors]) {
+      setCustomerErrors({ ...customerErrors, [name]: "" });
+    }
   };
 
   const handleCustomerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,13 +85,49 @@ export default function SignupPage() {
   };
 
   const handleVendorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setVendorData({ ...vendorData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setVendorData({ ...vendorData, [name]: value });
+    // Clear error when user starts typing
+    if (vendorErrors[name as keyof typeof vendorErrors]) {
+      setVendorErrors({ ...vendorErrors, [name]: "" });
+    }
   };
 
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerData.name || !customerData.email || !customerData.phone || !customerData.password) {
-      toast.error("Please fill in required fields");
+    
+    // Reset errors
+    setCustomerErrors({ name: "", email: "", phone: "", password: "" });
+    
+    // Validate required fields with specific error messages
+    let hasErrors = false;
+    const newErrors = { name: "", email: "", phone: "", password: "" };
+
+    if (!customerData.name?.trim()) {
+      newErrors.name = "Name is required";
+      hasErrors = true;
+    }
+    if (!customerData.email?.trim()) {
+      newErrors.email = "Email is required";
+      hasErrors = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerData.email)) {
+      newErrors.email = "Please enter a valid email address";
+      hasErrors = true;
+    }
+    if (!customerData.phone?.trim()) {
+      newErrors.phone = "Phone number is required";
+      hasErrors = true;
+    }
+    if (!customerData.password) {
+      newErrors.password = "Password is required";
+      hasErrors = true;
+    } else if (customerData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setCustomerErrors(newErrors);
       return;
     }
 
@@ -103,18 +160,68 @@ export default function SignupPage() {
         provider: "email",
       });
 
+      // Check if response indicates an error
+      if (response.success === false || !response.success) {
+        const errorMessage = (response as any).error || "Signup failed";
+        
+        // Map backend errors to specific fields
+        const newErrors = { name: "", email: "", phone: "", password: "" };
+        
+        if (errorMessage.toLowerCase().includes("email already exists") || 
+            errorMessage.toLowerCase().includes("user with this email")) {
+          newErrors.email = "This email is already registered. Please use a different email or log in.";
+        } else if (errorMessage.toLowerCase().includes("phone already exists") ||
+                   errorMessage.toLowerCase().includes("user with this phone")) {
+          newErrors.phone = "This phone number is already registered. Please use a different phone number.";
+        } else if (errorMessage.toLowerCase().includes("email")) {
+          newErrors.email = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("phone")) {
+          newErrors.phone = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("password")) {
+          newErrors.password = errorMessage;
+        } else {
+          // Show general error in toast if it's not field-specific
+          toast.error(errorMessage);
+        }
+        
+        setCustomerErrors(newErrors);
+        return;
+      }
+
       if (response.success && response.data) {
         toast.success("Account created successfully!");
-        // Store token and user data
+        // Store token, refresh token, and user data
         if (response.data.token) {
           localStorage.setItem("token", response.data.token);
+          if (response.data.refreshToken) {
+            localStorage.setItem("refreshToken", response.data.refreshToken);
+          }
           localStorage.setItem("user", JSON.stringify(response.data.user));
+          
+          // Dispatch custom event to notify Header component of auth state change
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("authStateChanged"));
+          }
         }
         // Redirect based on role
         if (response.data.user.role === "vendor") {
-          // Vendor goes to admin panel (different domain)
-          const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-          window.location.href = `${baseUrl}/dashboard`;
+          // Vendor should manage account in admin panel only.
+          // Log out from website context before redirecting to admin.
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
+            window.dispatchEvent(new Event("authStateChanged"));
+          }
+
+          // Vendor goes to admin panel login page (different domain)
+          const baseUrl =
+            process.env.NEXT_PUBLIC_ADMIN_URL ||
+            "https://street10-admin.vercel.app";
+          const email = encodeURIComponent(
+            response.data.user.email || customerData.email
+          );
+          window.location.href = `${baseUrl}/login?email=${email}`;
         } else {
           // Customer stays on same domain - use router
           router.push("/");
@@ -122,11 +229,34 @@ export default function SignupPage() {
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      const msg =
+      const errorMessage =
         error?.response?.data?.error?.message ||
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
+        error?.message ||
         "Signup failed";
-      toast.error(msg);
+      
+      // Map backend errors to specific fields
+      const newErrors = { name: "", email: "", phone: "", password: "" };
+      
+      if (errorMessage.toLowerCase().includes("email already exists") || 
+          errorMessage.toLowerCase().includes("user with this email")) {
+        newErrors.email = "This email is already registered. Please use a different email or log in.";
+      } else if (errorMessage.toLowerCase().includes("phone already exists") ||
+                 errorMessage.toLowerCase().includes("user with this phone")) {
+        newErrors.phone = "This phone number is already registered. Please use a different phone number.";
+      } else if (errorMessage.toLowerCase().includes("email")) {
+        newErrors.email = errorMessage;
+      } else if (errorMessage.toLowerCase().includes("phone")) {
+        newErrors.phone = errorMessage;
+      } else if (errorMessage.toLowerCase().includes("password")) {
+        newErrors.password = errorMessage;
+      } else {
+        // Show general error in toast if it's not field-specific
+        toast.error(errorMessage);
+      }
+      
+      setCustomerErrors(newErrors);
     } finally {
       setLoading(false);
     }
@@ -134,8 +264,22 @@ export default function SignupPage() {
 
   const handleVendorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vendorData.email || !vendorData.password || !vendorData.name || !vendorData.phone) {
-      toast.error("Please fill in required fields");
+    
+    // Validate required fields with specific error messages
+    if (!vendorData.name?.trim()) {
+      toast.error("Business name is required");
+      return;
+    }
+    if (!vendorData.email?.trim()) {
+      toast.error("Email is required");
+      return;
+    }
+    if (!vendorData.phone?.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    if (!vendorData.password || vendorData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
       return;
     }
 
@@ -151,14 +295,18 @@ export default function SignupPage() {
 
       if (response.success && response.data) {
         toast.success("Vendor account created successfully!");
-        // Store token and user data
+        // Store token, refresh token, and user data
         if (response.data.token) {
           localStorage.setItem("token", response.data.token);
+          if (response.data.refreshToken) {
+            localStorage.setItem("refreshToken", response.data.refreshToken);
+          }
           localStorage.setItem("user", JSON.stringify(response.data.user));
         }
-        // Redirect vendor to admin dashboard (different domain)
+        // Redirect vendor to admin login page (different domain)
         const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-        window.location.href = `${baseUrl}/dashboard`;
+        const email = encodeURIComponent(response.data.user.email || vendorData.email);
+        window.location.href = `${baseUrl}/login?email=${email}`;
       }
     } catch (error: any) {
       console.error("Vendor signup error:", error);
@@ -218,49 +366,78 @@ export default function SignupPage() {
           {activeTab === "customer" ? (
             <form onSubmit={handleCustomerSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={customerData.name}
                   onChange={handleCustomerChange}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  required
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    customerErrors.name ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="Your full name"
                 />
+                {customerErrors.name && (
+                  <p className="mt-1 text-sm text-red-500">{customerErrors.name}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="email"
                   name="email"
                   value={customerData.email}
                   onChange={handleCustomerChange}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  required
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    customerErrors.email ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="name@example.com"
                 />
+                {customerErrors.email && (
+                  <p className="mt-1 text-sm text-red-500">{customerErrors.email}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="phone"
                   value={customerData.phone}
                   onChange={handleCustomerChange}
                   required
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    customerErrors.phone ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="+974..."
                 />
+                {customerErrors.phone && (
+                  <p className="mt-1 text-sm text-red-500">{customerErrors.phone}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <input
                     type={showCustomerPassword ? "text" : "password"}
                     name="password"
                     value={customerData.password}
                     onChange={handleCustomerChange}
-                    className="w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
-                    placeholder="Create a password"
+                    required
+                    minLength={6}
+                    className={`w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border ${
+                      customerErrors.password ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-orange-500 outline-none`}
+                    placeholder="Create a password (min 6 characters)"
                   />
                   <button
                     type="button"
@@ -279,6 +456,9 @@ export default function SignupPage() {
                     )}
                   </button>
                 </div>
+                {customerErrors.password && (
+                  <p className="mt-1 text-sm text-red-500">{customerErrors.password}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Upload Image</label>
@@ -343,6 +523,42 @@ export default function SignupPage() {
           ) : (
             <form onSubmit={(e) => { 
               e.preventDefault(); 
+              
+              // Reset errors
+              setVendorErrors({ name: "", email: "", phone: "", password: "" });
+              
+              // Validate required fields before redirecting
+              let hasErrors = false;
+              const newErrors = { name: "", email: "", phone: "", password: "" };
+
+              if (!vendorData.name?.trim()) {
+                newErrors.name = "Business name is required";
+                hasErrors = true;
+              }
+              if (!vendorData.email?.trim()) {
+                newErrors.email = "Email is required";
+                hasErrors = true;
+              } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vendorData.email)) {
+                newErrors.email = "Please enter a valid email address";
+                hasErrors = true;
+              }
+              if (!vendorData.phone?.trim()) {
+                newErrors.phone = "Phone number is required";
+                hasErrors = true;
+              }
+              if (!vendorData.password) {
+                newErrors.password = "Password is required";
+                hasErrors = true;
+              } else if (vendorData.password.length < 6) {
+                newErrors.password = "Password must be at least 6 characters";
+                hasErrors = true;
+              }
+
+              if (hasErrors) {
+                setVendorErrors(newErrors);
+                return;
+              }
+              
               // Save vendor data to localStorage for pre-filling on next page
               localStorage.setItem('vendorSignupData', JSON.stringify({
                 businessName: vendorData.name,
@@ -353,49 +569,78 @@ export default function SignupPage() {
               router.push('/build-vendor-account'); 
             }} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Business Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={vendorData.name}
                   onChange={handleVendorChange}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  required
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    vendorErrors.name ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="Your Business Name"
                 />
+                {vendorErrors.name && (
+                  <p className="mt-1 text-sm text-red-500">{vendorErrors.name}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="email"
                   name="email"
                   value={vendorData.email}
                   onChange={handleVendorChange}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  required
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    vendorErrors.email ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="business@example.com"
                 />
+                {vendorErrors.email && (
+                  <p className="mt-1 text-sm text-red-500">{vendorErrors.email}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="phone"
                   value={vendorData.phone}
                   onChange={handleVendorChange}
                   required
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
+                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                    vendorErrors.phone ? "border-red-500" : "border-gray-200"
+                  } focus:ring-2 focus:ring-orange-500 outline-none`}
                   placeholder="+974..."
                 />
+                {vendorErrors.phone && (
+                  <p className="mt-1 text-sm text-red-500">{vendorErrors.phone}</p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <input
                     type={showVendorPassword ? "text" : "password"}
                     name="password"
                     value={vendorData.password}
                     onChange={handleVendorChange}
-                    className="w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
-                    placeholder="Create a password"
+                    required
+                    minLength={6}
+                    className={`w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border ${
+                      vendorErrors.password ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-orange-500 outline-none`}
+                    placeholder="Create a password (min 6 characters)"
                   />
                   <button
                     type="button"
@@ -414,6 +659,9 @@ export default function SignupPage() {
                     )}
                   </button>
                 </div>
+                {vendorErrors.password && (
+                  <p className="mt-1 text-sm text-red-500">{vendorErrors.password}</p>
+                )}
               </div>
               <button
                 type="submit"

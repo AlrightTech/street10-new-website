@@ -174,6 +174,12 @@ export default function Profile() {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           dispatch(resetUser());
+          
+          // Dispatch custom event to notify Header component of auth state change
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("authStateChanged"));
+          }
+          
           toast.error("Session expired. Please login again.");
           router.push("/login");
           return;
@@ -198,6 +204,11 @@ export default function Profile() {
     
     // Reset Redux state
     dispatch(resetUser());
+    
+    // Dispatch custom event to notify Header component of auth state change
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("authStateChanged"));
+    }
     
     // Show success message
     toast.success("Logged out successfully");
@@ -400,15 +411,18 @@ export default function Profile() {
               <span>Sign Out</span>
               <MdKeyboardArrowRight size={18} className="text-white" />
             </button>
-            <button 
-              onClick={() => {
-                router.push("/upload-cnic");
-              }}
-              className="cursor-pointer flex items-center justify-center gap-2 bg-white border border-[#EE8E32] text-[#EE8E32] font-medium px-6 py-3 rounded-lg hover:bg-orange-50 transition"
-            >
-              <span>Get Verified</span>
-              <HiCheckCircle size={18} className="text-[#EE8E32]" />
-            </button>
+            {/* Show Get Verified only if customer is not yet verified */}
+            {user.customerType === 'registered' || user.customerType === 'verification_pending' ? (
+              <button 
+                onClick={() => {
+                  router.push("/upload-cnic");
+                }}
+                className="cursor-pointer flex items-center justify-center gap-2 bg-white border border-[#EE8E32] text-[#EE8E32] font-medium px-6 py-3 rounded-lg hover:bg-orange-50 transition"
+              >
+                <span>Get Verified</span>
+                <HiCheckCircle size={18} className="text-[#EE8E32]" />
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

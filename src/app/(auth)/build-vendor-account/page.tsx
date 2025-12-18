@@ -34,6 +34,24 @@ export default function BuildVendorAccountPage() {
     password: "",
   });
 
+  // Form Errors
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    contactPerson: "",
+    contactPersonPhone: "",
+    email: "",
+    companyPhone: "",
+    businessName: "",
+    businessAddress: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    password: "",
+    companyRegistrationDoc: "",
+    commercialLicense: "",
+  });
+
   // Load pre-filled data from signup page
   useEffect(() => {
     const savedData = localStorage.getItem('vendorSignupData');
@@ -56,7 +74,12 @@ export default function BuildVendorAccountPage() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    // Clear error when user starts typing
+    if (formErrors[name as keyof typeof formErrors]) {
+      setFormErrors({ ...formErrors, [name]: "" });
+    }
   };
 
   const handleFileChange = (
@@ -82,31 +105,105 @@ export default function BuildVendorAccountPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (
-      !formData.name ||
-      !formData.contactPerson ||
-      !formData.contactPersonPhone ||
-      !formData.email ||
-      !formData.companyPhone ||
-      !formData.businessName ||
-      !formData.businessAddress ||
-      !formData.city ||
-      !formData.state ||
-      !formData.zipCode ||
-      !formData.country
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
+    // Reset errors
+    setFormErrors({
+      name: "",
+      contactPerson: "",
+      contactPersonPhone: "",
+      email: "",
+      companyPhone: "",
+      businessName: "",
+      businessAddress: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+      password: "",
+      companyRegistrationDoc: "",
+      commercialLicense: "",
+    });
+
+    // Validate required fields with specific error messages
+    let hasErrors = false;
+    const newErrors = {
+      name: "",
+      contactPerson: "",
+      contactPersonPhone: "",
+      email: "",
+      companyPhone: "",
+      businessName: "",
+      businessAddress: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+      password: "",
+      companyRegistrationDoc: "",
+      commercialLicense: "",
+    };
+
+    if (!formData.name?.trim()) {
+      newErrors.name = "Name is required";
+      hasErrors = true;
+    }
+    if (!formData.contactPerson?.trim()) {
+      newErrors.contactPerson = "Contact person name is required";
+      hasErrors = true;
+    }
+    if (!formData.contactPersonPhone?.trim()) {
+      newErrors.contactPersonPhone = "Contact person phone number is required";
+      hasErrors = true;
+    }
+    if (!formData.email?.trim()) {
+      newErrors.email = "Email is required";
+      hasErrors = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+      hasErrors = true;
+    }
+    if (!formData.companyPhone?.trim()) {
+      newErrors.companyPhone = "Company phone number is required";
+      hasErrors = true;
+    }
+    if (!formData.businessName?.trim()) {
+      newErrors.businessName = "Business name is required";
+      hasErrors = true;
+    }
+    if (!formData.businessAddress?.trim()) {
+      newErrors.businessAddress = "Business address is required";
+      hasErrors = true;
+    }
+    if (!formData.city?.trim()) {
+      newErrors.city = "City is required";
+      hasErrors = true;
+    }
+    if (!formData.state?.trim()) {
+      newErrors.state = "State is required";
+      hasErrors = true;
+    }
+    if (!formData.zipCode?.trim()) {
+      newErrors.zipCode = "Zip code is required";
+      hasErrors = true;
+    }
+    if (!formData.country?.trim()) {
+      newErrors.country = "Country is required";
+      hasErrors = true;
+    }
+    if (!formData.password || formData.password.length < 6) {
+      newErrors.password = "Password is required and must be at least 6 characters";
+      hasErrors = true;
+    }
+    if (!formData.companyRegistrationDoc) {
+      newErrors.companyRegistrationDoc = "Company registration document is required";
+      hasErrors = true;
+    }
+    if (!formData.commercialLicense) {
+      newErrors.commercialLicense = "Commercial license document is required";
+      hasErrors = true;
     }
 
-    if (!formData.password) {
-      toast.error("Password is required. Please go back and set a password.");
-      return;
-    }
-
-    if (!formData.companyRegistrationDoc || !formData.commercialLicense) {
-      toast.error("Please upload both required documents");
+    if (hasErrors) {
+      setFormErrors(newErrors);
       return;
     }
 
@@ -153,24 +250,126 @@ export default function BuildVendorAccountPage() {
         profileImageUrl: profileImageBase64,
       });
 
+      // Check if response indicates an error
+      if (response.success === false || !response.success) {
+        const errorMessage = (response as any).error || "Vendor registration failed";
+        
+        // Map backend errors to specific fields
+        const newErrors = {
+          name: "",
+          contactPerson: "",
+          contactPersonPhone: "",
+          email: "",
+          companyPhone: "",
+          businessName: "",
+          businessAddress: "",
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+          password: "",
+          companyRegistrationDoc: "",
+          commercialLicense: "",
+        };
+        
+        if (errorMessage.toLowerCase().includes("email already exists") || 
+            errorMessage.toLowerCase().includes("user with this email")) {
+          newErrors.email = "This email is already registered. Please use a different email or log in.";
+        } else if (errorMessage.toLowerCase().includes("phone already exists") ||
+                   errorMessage.toLowerCase().includes("user with this phone")) {
+          newErrors.companyPhone = "This phone number is already registered. Please use a different phone number.";
+        } else if (errorMessage.toLowerCase().includes("email")) {
+          newErrors.email = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("phone")) {
+          newErrors.companyPhone = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("password")) {
+          newErrors.password = errorMessage;
+        } else {
+          // Show general error in toast if it's not field-specific
+          toast.error(errorMessage);
+        }
+        
+        setFormErrors(newErrors);
+        return;
+      }
+
       if (response.success && response.data) {
         toast.success("Vendor account created successfully!");
-        // Store token and user data
+        // Store token, refresh token, and user data (website context)
         if (response.data.token) {
           localStorage.setItem("token", response.data.token);
+          if (response.data.refreshToken) {
+            localStorage.setItem("refreshToken", response.data.refreshToken);
+          }
           localStorage.setItem("user", JSON.stringify(response.data.user));
+          
+          // Dispatch custom event to notify Header component of auth state change
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("authStateChanged"));
+          }
         }
-        // Redirect to vendor dashboard
-        const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-        window.location.href = `${baseUrl}/dashboard`;
+
+        // Before moving vendor to admin panel, log them out from website
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
+          window.dispatchEvent(new Event("authStateChanged"));
+        }
+
+        // Redirect to vendor admin login page
+        const baseUrl =
+          process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+        const email = encodeURIComponent(
+          response.data.user.email || formData.email
+        );
+        window.location.href = `${baseUrl}/login?email=${email}`;
       }
     } catch (error: any) {
       console.error("Vendor registration error:", error);
-      const msg =
+      const errorMessage =
         error?.response?.data?.error?.message ||
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
+        error?.message ||
         "Vendor registration failed";
-      toast.error(msg);
+      
+      // Map backend errors to specific fields
+      const newErrors = {
+        name: "",
+        contactPerson: "",
+        contactPersonPhone: "",
+        email: "",
+        companyPhone: "",
+        businessName: "",
+        businessAddress: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "",
+        password: "",
+        companyRegistrationDoc: "",
+        commercialLicense: "",
+      };
+      
+      if (errorMessage.toLowerCase().includes("email already exists") || 
+          errorMessage.toLowerCase().includes("user with this email")) {
+        newErrors.email = "This email is already registered. Please use a different email or log in.";
+      } else if (errorMessage.toLowerCase().includes("phone already exists") ||
+                 errorMessage.toLowerCase().includes("user with this phone")) {
+        newErrors.companyPhone = "This phone number is already registered. Please use a different phone number.";
+      } else if (errorMessage.toLowerCase().includes("email")) {
+        newErrors.email = errorMessage;
+      } else if (errorMessage.toLowerCase().includes("phone")) {
+        newErrors.companyPhone = errorMessage;
+      } else if (errorMessage.toLowerCase().includes("password")) {
+        newErrors.password = errorMessage;
+      } else {
+        // Show general error in toast if it's not field-specific
+        toast.error(errorMessage);
+      }
+      
+      setFormErrors(newErrors);
     } finally {
       setLoading(false);
     }
@@ -230,77 +429,102 @@ export default function BuildVendorAccountPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name
+                    Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.name ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Your Name"
                     required
                   />
+                  {formErrors.name && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Person
+                    Contact Person <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="contactPerson"
                     value={formData.contactPerson}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.contactPerson ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Contact Person's Name"
                     required
                   />
+                  {formErrors.contactPerson && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.contactPerson}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Person Phone Number
+                    Contact Person Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
                     name="contactPersonPhone"
                     value={formData.contactPersonPhone}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.contactPersonPhone ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Contact Person's Phone Number"
                     required
                   />
+                  {formErrors.contactPersonPhone && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.contactPersonPhone}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.email ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Your Email"
                     required
                   />
+                  {formErrors.email && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.email}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company Phone Number
+                    Company Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
                     name="companyPhone"
                     value={formData.companyPhone}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.companyPhone ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Phone Number"
                     required
                   />
+                  {formErrors.companyPhone && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.companyPhone}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -311,92 +535,122 @@ export default function BuildVendorAccountPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Name
+                    Business Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="businessName"
                     value={formData.businessName}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.businessName ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Your Business Name"
                     required
                   />
+                  {formErrors.businessName && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.businessName}</p>
+                  )}
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Address
+                    Business Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="businessAddress"
                     value={formData.businessAddress}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.businessAddress ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Business Address"
                     required
                   />
+                  {formErrors.businessAddress && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.businessAddress}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City
+                    City <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.city ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter City Name"
                     required
                   />
+                  {formErrors.city && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.city}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    State
+                    State <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="state"
                     value={formData.state}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.state ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter State"
                     required
                   />
+                  {formErrors.state && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.state}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Zip Code
+                    Zip Code <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="zipCode"
                     value={formData.zipCode}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.zipCode ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Zip Code"
                     required
                   />
+                  {formErrors.zipCode && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.zipCode}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Country
+                    Country <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     name="country"
                     value={formData.country}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition"
+                    className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
+                      formErrors.country ? "border-red-500" : "border-gray-200"
+                    } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
                     placeholder="Enter Country"
                     required
                   />
+                  {formErrors.country && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.country}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -406,18 +660,27 @@ export default function BuildVendorAccountPage() {
               {/* Company Registration Doc */}
               <div>
                 <label htmlFor="companyRegDoc" className="block text-sm font-medium text-gray-700 mb-2">
-                  Attach Company registration Doc
+                  Attach Company registration Doc <span className="text-red-500">*</span>
                 </label>
                 <div
                   onClick={() => companyRegFileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#ee8e31] transition-colors bg-gray-50"
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                    formErrors.companyRegistrationDoc
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-gray-50 hover:border-[#ee8e31]"
+                  }`}
                 >
                   <input
                     id="companyRegDoc"
                     ref={companyRegFileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => handleFileChange(e, "companyRegistrationDoc")}
+                    onChange={(e) => {
+                      handleFileChange(e, "companyRegistrationDoc");
+                      if (formErrors.companyRegistrationDoc) {
+                        setFormErrors({ ...formErrors, companyRegistrationDoc: "" });
+                      }
+                    }}
                     className="hidden"
                     aria-label="Upload Company registration Doc"
                   />
@@ -443,23 +706,35 @@ export default function BuildVendorAccountPage() {
                     </p>
                   </div>
                 </div>
+                {formErrors.companyRegistrationDoc && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.companyRegistrationDoc}</p>
+                )}
               </div>
 
               {/* Commercial License */}
               <div>
                 <label htmlFor="commercialLicense" className="block text-sm font-medium text-gray-700 mb-2">
-                  Attach Commercial license
+                  Attach Commercial license <span className="text-red-500">*</span>
                 </label>
                 <div
                   onClick={() => commercialLicenseFileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-[#ee8e31] transition-colors bg-gray-50"
+                  className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                    formErrors.commercialLicense
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-300 bg-gray-50 hover:border-[#ee8e31]"
+                  }`}
                 >
                   <input
                     id="commercialLicense"
                     ref={commercialLicenseFileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => handleFileChange(e, "commercialLicense")}
+                    onChange={(e) => {
+                      handleFileChange(e, "commercialLicense");
+                      if (formErrors.commercialLicense) {
+                        setFormErrors({ ...formErrors, commercialLicense: "" });
+                      }
+                    }}
                     className="hidden"
                     aria-label="Upload Commercial license"
                   />
@@ -485,6 +760,9 @@ export default function BuildVendorAccountPage() {
                     </p>
                   </div>
                 </div>
+                {formErrors.commercialLicense && (
+                  <p className="mt-1 text-sm text-red-500">{formErrors.commercialLicense}</p>
+                )}
               </div>
 
               {/* Image Upload */}

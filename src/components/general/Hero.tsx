@@ -5,11 +5,37 @@ import { useRouter } from "next/navigation";
 import { FaArrowDown } from "react-icons/fa";
 import { IoShieldCheckmark } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 function Hero() {
   const router = useRouter();
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [showGetVerified, setShowGetVerified] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) {
+        setShowGetVerified(false);
+        return;
+      }
+
+      const userData = JSON.parse(userStr);
+      const type = userData?.customerType;
+
+      if (type === "registered" || type === "verification_pending") {
+        setShowGetVerified(true);
+      } else {
+        // verified or anything else -> hide button
+        setShowGetVerified(false);
+      }
+    } catch (error) {
+      console.error("Error reading user in Hero:", error);
+      setShowGetVerified(false);
+    }
+  }, []);
 
   return (
     <div className="relative w-full h-[650px]">
@@ -49,13 +75,16 @@ function Hero() {
               Explore more <FaArrowDown className="animate-bounce" />
             </button>
           </Link>
-          
-          <button 
-            onClick={() => router.push("/upload-cnic")}
-            className="w-[180px] h-[48px] border-2 border-[#EE8E32] bg-transparent cursor-pointer transition px-8 py-3 rounded-lg text-[#EE8E32] font-semibold flex items-center justify-center hover:bg-[#EE8E32] hover:text-white"
-          >
-            Get Verified
-          </button>
+
+          {/* Show Get Verified only for non-verified customers */}
+          {showGetVerified && (
+            <button
+              onClick={() => router.push("/upload-cnic")}
+              className="w-[180px] h-[48px] border-2 border-[#EE8E32] bg-transparent cursor-pointer transition px-8 py-3 rounded-lg text-[#EE8E32] font-semibold flex items-center justify-center hover:bg-[#EE8E32] hover:text-white"
+            >
+              Get Verified
+            </button>
+          )}
         </div>
       </div>
 

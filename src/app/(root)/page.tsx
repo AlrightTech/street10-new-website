@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import SimpleCarSlider from "@/components/home/SimpleCarSlider";
 import { useRouter } from "next/navigation";
 import { HiCheckCircle } from "react-icons/hi2";
+import { userApi } from "@/services/user.api";
 
 const page = () => {
   const router = useRouter();
@@ -14,21 +15,39 @@ const page = () => {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        try {
-          const userData = JSON.parse(userStr);
-          setUser(userData);
-          // Show Get Verified button if user is registered but not verified
-          if (userData.customerType === 'registered' || userData.customerType === 'verification_pending') {
-            setShowGetVerified(true);
-          }
-        } catch (error) {
-          console.error("Error parsing user:", error);
+    const fetchUserStatus = async () => {
+      try {
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("token")
+            : null;
+
+        if (!token) {
+          setShowGetVerified(false);
+          return;
         }
+
+        // Always get fresh user from API so customerType is up to date
+        const freshUser = await userApi.getCurrentUser();
+        setUser(freshUser);
+
+        if (
+          freshUser.customerType === "registered" ||
+          freshUser.customerType === "verification_pending"
+        ) {
+          setShowGetVerified(true);
+        } else {
+          // verified or anything else -> hide button
+          setShowGetVerified(false);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user on home page:", error);
+        // Fallback: do not show the button if we are unsure
+        setShowGetVerified(false);
       }
-    }
+    };
+
+    fetchUserStatus();
   }, []);
 
   return (

@@ -33,6 +33,12 @@ export default function OTPPage() {
         if (error.response?.status === 401 || error.response?.status === 403) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
+          
+          // Dispatch custom event to notify Header component of auth state change
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("authStateChanged"));
+          }
+          
           toast.error("Session expired. Please login again.");
           router.push("/login");
         }

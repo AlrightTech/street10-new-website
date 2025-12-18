@@ -16,8 +16,10 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // Backend returns { success: false, error: { code, message } }
+      const errorMessage = errorData?.error?.message || errorData?.message || 'Vendor registration failed';
       return NextResponse.json(
-        { success: false, error: errorData.message || 'Vendor registration failed' },
+        { success: false, error: errorMessage },
         { status: response.status }
       );
     }

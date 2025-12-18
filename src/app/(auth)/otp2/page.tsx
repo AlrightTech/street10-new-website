@@ -56,6 +56,11 @@ export default function AuthPage() {
 
       if (response.success && response.data) {
         localStorage.setItem("token", response.data.token);
+        if (response.data.refreshToken) {
+          localStorage.setItem("refreshToken", response.data.refreshToken);
+        }
+        // Also store user in localStorage for Header component
+        localStorage.setItem("user", JSON.stringify(response.data.user));
         dispatch(
           setUser({
             id: parseInt(response.data.user.id) || 0,
@@ -79,6 +84,11 @@ export default function AuthPage() {
         );
         toast.success("Login successful!");
         
+        // Dispatch custom event to notify Header component of auth state change
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("authStateChanged"));
+        }
+        
         // Check if user is a vendor (assuming role 'vendor' or similar logic)
         // The user requested: "once login will lead to https://street10-admin.vercel.app/dashboard"
         // I'll check if the role is 'vendor' or if we should just redirect everyone from this flow?
@@ -86,9 +96,19 @@ export default function AuthPage() {
         // I'll assume if role is 'vendor', redirect to admin dashboard.
         
         if (response.data.user.role === 'vendor') {
-             // Vendor goes to admin panel (different domain)
+             // Vendor should manage account in admin panel only.
+             // Log out from website context before redirecting to admin.
+             if (typeof window !== "undefined") {
+               localStorage.removeItem("token");
+               localStorage.removeItem("refreshToken");
+               localStorage.removeItem("user");
+               window.dispatchEvent(new Event("authStateChanged"));
+             }
+
+             // Vendor goes to admin panel login page (different domain)
              const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-             window.location.href = `${baseUrl}/dashboard`;
+             const email = encodeURIComponent(response.data.user.email || "");
+             window.location.href = `${baseUrl}/login?email=${email}`;
         } else {
              // Customer stays on same domain - use router
              router.push("/");

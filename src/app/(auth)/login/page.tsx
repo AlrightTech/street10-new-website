@@ -35,9 +35,17 @@ export default function LoginPage() {
 
       if (response.success) {
         toast.success("Login successful!");
-        // Store token
+        // Store token and refresh token
         localStorage.setItem("token", response.data.token);
+        if (response.data.refreshToken) {
+          localStorage.setItem("refreshToken", response.data.refreshToken);
+        }
         localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        // Dispatch custom event to notify Header component of auth state change
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("authStateChanged"));
+        }
 
         // Redirect based on role
         if (response.data.user.role === "vendor") {

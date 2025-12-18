@@ -30,6 +30,8 @@ const Header = () => {
   const [langOpen, setLangOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState(languages[0]);
   const langRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLDivElement>(null);
@@ -45,6 +47,29 @@ const Header = () => {
   };
 
   const activeTab = getActiveTab();
+
+  // Function to check and update auth state
+  const checkAuthState = () => {
+    if (typeof window === "undefined") return;
+    
+    const userStr = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+    
+    if (userStr && token) {
+      try {
+        const userData = JSON.parse(userStr);
+        setIsLoggedIn(true);
+        setUserRole(userData.role || null);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage:", error);
+        setIsLoggedIn(false);
+        setUserRole(null);
+      }
+    } else {
+      setIsLoggedIn(false);
+      setUserRole(null);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -62,8 +87,35 @@ const Header = () => {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    // Check authentication state on mount
+    checkAuthState();
+
+    // Listen for localStorage changes (e.g., from other tabs or after registration)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "user" || e.key === "token") {
+        checkAuthState();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Listen for custom auth state change events (from same tab)
+    const handleAuthChange = () => {
+      checkAuthState();
+    };
+    window.addEventListener("authStateChanged", handleAuthChange);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("authStateChanged", handleAuthChange);
+    };
   }, []);
+
+  // Re-check auth state when pathname changes (e.g., after redirect from signup)
+  useEffect(() => {
+    checkAuthState();
+  }, [pathname]);
 
   const handleLogoutClick = () => {
     // Clear localStorage
@@ -73,8 +125,15 @@ const Header = () => {
     // Reset Redux state
     dispatch(resetUser());
     
+    // Dispatch custom event to notify other components of auth state change
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("authStateChanged"));
+    }
+    
     // Show success message
     toast.success("Logged out successfully");
+    setIsLoggedIn(false);
+    setUserRole(null);
     
     // Redirect to login
     router.push("/login");
@@ -144,8 +203,8 @@ const Header = () => {
                   </div>
                 </div>
 
-                {/* Join Us Button - Mobile Only */}
-                {pathname === "/" && (
+                {/* Join Us Button - Mobile Only (only when not logged in) */}
+                {pathname === "/" && !isLoggedIn && (
                   <Link href={"/signup"}>
                     <button
                       onClick={() => {
@@ -279,14 +338,38 @@ const Header = () => {
 
         {/* Profile */}
         <div ref={profileRef} className="relative">
-          <Link
-            href="/profile"
+          <button
             onClick={(e) => {
-              // Check if user is authenticated before navigating
               const token = localStorage.getItem("token");
-              if (!token) {
+              const userStr = localStorage.getItem("user");
+
+              if (!token || !userStr) {
                 e.preventDefault();
                 toast.error("Please login to view your profile");
+                router.push("/login");
+                return;
+              }
+
+              try {
+                const userData = JSON.parse(userStr);
+                // If user is a vendor, send them to admin panel profile page
+                if (userData.role === "vendor") {
+                  // Log out from website context as vendor will manage account in admin panel
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("user");
+                  setIsLoggedIn(false);
+                  setUserRole(null);
+
+                  const baseUrl =
+                    process.env.NEXT_PUBLIC_ADMIN_URL ||
+                    "https://street10-admin.vercel.app";
+                  window.location.href = `${baseUrl}/settings/profile`;
+                } else {
+                  // Normal customers go to customer profile page
+                  router.push("/profile");
+                }
+              } catch (error) {
+                console.error("Failed to parse user from localStorage:", error);
                 router.push("/login");
               }
             }}
@@ -299,7 +382,7 @@ const Header = () => {
               width={20}
               height={20}
             />
-          </Link>
+          </button>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-lg p-3 z-50">
               <Link href="#">
@@ -323,7 +406,8 @@ const Header = () => {
             </div>
           )}
         </div>
-        {pathname === "/" && (
+        {/* Join Us Button - Desktop (only when not logged in) */}
+        {pathname === "/" && !isLoggedIn && (
           <Link href={"/signup"}>
             <button className="hidden lg:inline-block ms-12 cursor-pointer rounded-md bg-[#ee8e31] px-4 py-2 text-white font-medium shadow transition">
               Join Us
