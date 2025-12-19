@@ -16,6 +16,7 @@ import { HiCheckCircle } from "react-icons/hi2";
 import { IoLogOutOutline } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import { HiOutlineDotsVertical } from "react-icons/hi";
+import VerificationModal from "@/components/ui/VerificationModal";
 import { resetUser } from "@/redux/authSlice";
 import { userApi, type User } from "@/services/user.api";
 
@@ -32,6 +33,7 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState<"all" | "approved" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   const languages = [
     { name: "English", flag: "https://flagcdn.com/w20/us.png", code: "en" },
@@ -404,7 +406,7 @@ export default function Profile() {
 
           {/* Sign Out and Get Verified Buttons */}
           <div className="mt-8 flex justify-between">
-            <button 
+            <button
               onClick={handleLogout}
               className="cursor-pointer flex items-center justify-center gap-2 bg-[#EE8E32] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#d87a28] transition"
             >
@@ -412,10 +414,16 @@ export default function Profile() {
               <MdKeyboardArrowRight size={18} className="text-white" />
             </button>
             {/* Show Get Verified only if customer is not yet verified */}
-            {user.customerType === 'registered' || user.customerType === 'verification_pending' ? (
-              <button 
+            {user.customerType === "registered" || user.customerType === "verification_pending" ? (
+              <button
                 onClick={() => {
-                  router.push("/upload-cnic");
+                  if (user.customerType === "verification_pending") {
+                    // Already submitted documents, show pending message instead of resubmitting
+                    setIsVerificationModalOpen(true);
+                  } else {
+                    // Not yet submitted -> go to upload page
+                    router.push("/upload-cnic");
+                  }
                 }}
                 className="cursor-pointer flex items-center justify-center gap-2 bg-white border border-[#EE8E32] text-[#EE8E32] font-medium px-6 py-3 rounded-lg hover:bg-orange-50 transition"
               >
@@ -426,6 +434,14 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Verification Pending Modal (re-uses global verification modal) */}
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        context="bidding"
+        state="pending"
+      />
 
       {/* Request Modal - First Modal with Buttons */}
       {isRequestModalOpen && (

@@ -88,7 +88,7 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
       plate: product.title || "Product",
       provider: [
         "Provided by us",
-        product.categories?.[0]?.name || "General",
+        product.categories?.[0]?.category?.name || "General",
         "In Stock",
       ],
     };

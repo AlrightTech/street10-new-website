@@ -1,8 +1,9 @@
 "use client";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
+import VerificationModal from "../ui/VerificationModal";
 import { productApi } from "@/services/product.api";
 import type { Product } from "@/services/product.api";
 
@@ -16,8 +17,10 @@ const category = [
 ];
 
 function Cars() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -56,6 +59,27 @@ function Cars() {
     };
   });
 
+  const checkCommerceAccess = () => {
+    if (typeof window === "undefined") return false;
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Not logged in - ask user to register
+      setIsVerificationModalOpen(true);
+      return false;
+    }
+
+    // Logged in customers can buy without extra verification
+    return true;
+  };
+
+  const handleCarClick = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (checkCommerceAccess()) {
+      router.push(`/car-preview?id=${id}&type=product`);
+    }
+  };
+
   return (
     <section className="pt-5 pb-20 px-4 md:px-10 lg:px-20 relative">
       <CategoriesSlider category={category} />
@@ -67,9 +91,9 @@ function Cars() {
           </div>
         ) : cars.length > 0 ? (
           cars.map((car, index) => (
-            <Link
+            <div
               key={car.id || index}
-              href={`/car-preview?id=${car.id}&type=product`}
+              onClick={(e) => handleCarClick(e, car.id)}
               className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
             >
               {/* Image Section */}
@@ -115,7 +139,7 @@ function Cars() {
                   ))}
                 </div>
               </div>
-            </Link>
+            </div>
           ))
         ) : (
           <div className="col-span-full text-center py-10">
@@ -123,6 +147,14 @@ function Cars() {
           </div>
         )}
       </div>
+
+      {/* Verification Modal for ecommerce products (guest users) */}
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        context="ecommerce"
+        state="guest"
+      />
     </section>
   );
 }

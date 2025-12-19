@@ -22,12 +22,18 @@ function Cars() {
   const [loading, setLoading] = useState(true);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
+  const [verificationState, setVerificationState] = useState<
+    "guest" | "need_verification" | "pending"
+  >("need_verification");
 
   useEffect(() => {
     const fetchAuctions = async () => {
       try {
         setLoading(true);
         const response = await auctionApi.getActive({ limit: 20 });
+        console.log("Active auctions API response:", response);
+        console.log("Auctions data:", response.data);
+        console.log("Auctions count:", response.data?.length);
         setAuctions(response.data || []);
       } catch (error) {
         console.error("Error fetching active auctions:", error);
@@ -46,7 +52,8 @@ function Cars() {
     
     const token = localStorage.getItem("token");
     if (!token) {
-      // Not logged in - show modal and redirect to login
+      // Not logged in - ask to register (and then verify)
+      setVerificationState("guest");
       setIsVerificationModalOpen(true);
       return false;
     }
@@ -55,14 +62,22 @@ function Cars() {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        if (user.customerType !== 'verified') {
-          // Not verified - show modal
-          setSelectedCarId(carId);
-          setIsVerificationModalOpen(true);
-          return false;
+        if (user.customerType === "verified") {
+          // Verified - allow navigation
+          return true;
         }
-        // Verified - allow navigation
-        return true;
+
+        if (user.customerType === "verification_pending") {
+          // Already submitted KYC, show pending message
+          setVerificationState("pending");
+        } else {
+          // Registered but not verified yet
+          setVerificationState("need_verification");
+        }
+
+        setSelectedCarId(carId);
+        setIsVerificationModalOpen(true);
+        return false;
       } catch (error) {
         console.error("Error parsing user:", error);
       }
@@ -192,6 +207,8 @@ function Cars() {
       <VerificationModal
         isOpen={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
+        context="bidding"
+        state={verificationState}
       />
     </section>
   );

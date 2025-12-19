@@ -70,6 +70,9 @@ function CarSlider() {
   const [loading, setLoading] = useState(true);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
+  const [verificationState, setVerificationState] = useState<
+    "guest" | "need_verification" | "pending"
+  >("need_verification");
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -114,6 +117,8 @@ function CarSlider() {
     
     const token = localStorage.getItem("token");
     if (!token) {
+      // Not logged in - ask to register (and then verify)
+      setVerificationState("guest");
       setIsVerificationModalOpen(true);
       return false;
     }
@@ -122,12 +127,19 @@ function CarSlider() {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        if (user.customerType !== 'verified') {
-          setSelectedCarId(carId);
-          setIsVerificationModalOpen(true);
-          return false;
+        if (user.customerType === "verified") {
+          return true;
         }
-        return true;
+
+        if (user.customerType === "verification_pending") {
+          setVerificationState("pending");
+        } else {
+          setVerificationState("need_verification");
+        }
+
+        setSelectedCarId(carId);
+        setIsVerificationModalOpen(true);
+        return false;
       } catch (error) {
         console.error("Error parsing user:", error);
       }
@@ -336,6 +348,8 @@ function CarSlider() {
       <VerificationModal
         isOpen={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
+        context="bidding"
+        state={verificationState}
       />
     </>
   );
