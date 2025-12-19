@@ -80,6 +80,10 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
   // Transform product data to match the car format
   const cars = products.map((product) => {
     const price = parseFloat(product.priceMinor) / 100;
+    // Handle both nested (from home API) and flat (from products API) category structures
+    const categoryName = (product.categories?.[0] as any)?.category?.name 
+      || (product.categories?.[0] as any)?.name 
+      || "General";
     return {
       id: product.id,
       src: product.media?.[0]?.url || "/images/street/simpleSlider-1.jpg",
@@ -88,7 +92,7 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
       plate: product.title || "Product",
       provider: [
         "Provided by us",
-        product.categories?.[0]?.category?.name || "General",
+        categoryName,
         "In Stock",
       ],
     };
