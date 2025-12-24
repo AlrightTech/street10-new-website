@@ -83,10 +83,15 @@ function CarSlider() {
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
           console.log('[Auctions] API Response:', response);
+          console.log('[Auctions] Response success:', response?.success);
+          console.log('[Auctions] Response data:', response?.data);
+          console.log('[Auctions] Data is array:', Array.isArray(response?.data));
+          console.log('[Auctions] Data length:', response?.data?.length);
         }
         
         // Response structure: { success: true, data: Auction[], pagination: {...} }
         if (response && response.success && Array.isArray(response.data)) {
+          console.log('[Auctions] Setting auctions, count:', response.data.length);
           setAuctions(response.data);
         } else {
           console.warn('[Auctions] Invalid response structure:', response);
