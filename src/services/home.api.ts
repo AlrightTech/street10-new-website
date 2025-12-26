@@ -44,4 +44,29 @@ export const homeApi = {
     );
     return response.data;
   },
+
+  getStoryHighlights: async (limit: number = 20) => {
+    const response = await apiClient.get<{
+      data: Array<{
+        id: string;
+        title: string;
+        thumbnailUrl: string | null;
+        mediaUrls: string[];
+        type: 'image' | 'video';
+        url: string | null;
+        startDate: string;
+        endDate: string;
+        audience: 'user' | 'vendor';
+        priority: 'high' | 'medium' | 'low';
+      }>;
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+      };
+    }>("/home/story-highlights", {
+      params: { limit },
+    });
+    return response.data;
+  },
 };

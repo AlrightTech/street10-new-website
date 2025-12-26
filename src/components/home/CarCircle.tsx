@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -9,70 +9,7 @@ import "swiper/css/navigation";
 import { MdOutlineKeyboardArrowLeft } from "react-icons/md";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import StoryViewer, { type Story } from "./StoryViewer";
-
-// Updated story data structure with multiple slides per story
-const stories: Story[] = [
-  {
-    id: 1,
-    title: "Luxury Sports Car",
-    slides: [
-      { image: "/images/cars/car-1.jpg", alt: "Luxury sports car front view", duration: 5000 },
-      { image: "/images/cars/car-1.jpg", alt: "Luxury sports car interior", duration: 5000 },
-    ],
-  },
-  {
-    id: 2,
-    title: "Classic Vintage",
-    slides: [
-      { image: "/images/cars/car-2.jpg", alt: "Classic vintage car", duration: 5000 },
-    ],
-  },
-  {
-    id: 3,
-    title: "Modern Sedan",
-    slides: [
-      { image: "/images/cars/car-3.jpg", alt: "Modern sedan", duration: 5000 },
-      { image: "/images/cars/car-3.jpg", alt: "Modern sedan dashboard", duration: 5000 },
-    ],
-  },
-  {
-    id: 4,
-    title: "SUV Adventure",
-    slides: [
-      { image: "/images/cars/car-4.jpg", alt: "SUV adventure", duration: 5000 },
-    ],
-  },
-  {
-    id: 5,
-    title: "Electric Vehicle",
-    slides: [
-      { image: "/images/cars/car-5.jpg", alt: "Electric vehicle", duration: 5000 },
-      { image: "/images/cars/car-5.jpg", alt: "Electric vehicle charging", duration: 5000 },
-    ],
-  },
-  {
-    id: 6,
-    title: "Convertible",
-    slides: [
-      { image: "/images/cars/car-6.jpg", alt: "Convertible car", duration: 5000 },
-    ],
-  },
-  {
-    id: 7,
-    title: "Performance Car",
-    slides: [
-      { image: "/images/cars/car-7.jpg", alt: "Performance car", duration: 5000 },
-      { image: "/images/cars/car-7.jpg", alt: "Performance car engine", duration: 5000 },
-    ],
-  },
-  {
-    id: 8,
-    title: "Luxury Coupe",
-    slides: [
-      { image: "/images/cars/car-8.jpg", alt: "Luxury coupe", duration: 5000 },
-    ],
-  },
-];
+import { homeApi } from "@/services/home.api";
 
 function CarCircle() {
   const prevRef = useRef<HTMLDivElement | null>(null);
@@ -80,6 +17,61 @@ function CarCircle() {
   const [swiperInstance, setSwiperInstance] = useState<SwiperType | null>(null);
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStories = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await homeApi.getStoryHighlights(20);
+        
+        // Convert API response to Story format
+        const convertedStories: Story[] = response.data.map((highlight) => {
+          // Convert mediaUrls to slides
+          const slides = (highlight.mediaUrls || []).map((url, index) => ({
+            image: url,
+            alt: highlight.title || `Story slide ${index + 1}`,
+            duration: 5000, // Default 5 seconds
+          }));
+
+          // If no media URLs, use thumbnail as fallback
+          if (slides.length === 0 && highlight.thumbnailUrl) {
+            slides.push({
+              image: highlight.thumbnailUrl,
+              alt: highlight.title || "Story",
+              duration: 5000,
+            });
+          }
+
+          return {
+            id: highlight.id,
+            title: highlight.title,
+            slides: slides.length > 0 ? slides : [
+              {
+                image: "/images/cars/car-1.jpg", // Fallback image
+                alt: highlight.title || "Story",
+                duration: 5000,
+              },
+            ],
+          };
+        });
+
+        setStories(convertedStories);
+      } catch (err: any) {
+        console.error("Error fetching story highlights:", err);
+        setError(err.message || "Failed to load stories");
+        // Set empty array on error
+        setStories([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStories();
+  }, []);
 
   const handleStoryClick = (index: number) => {
     setSelectedStoryIndex(index);
@@ -101,6 +93,30 @@ function CarCircle() {
       swiperInstance.slideNext();
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full relative px-4 md:px-8 lg:px-12 pb-10">
+        <div className="flex items-center justify-center py-10">
+          <p className="text-gray-500">Loading stories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full relative px-4 md:px-8 lg:px-12 pb-10">
+        <div className="flex items-center justify-center py-10">
+          <p className="text-red-500 text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (stories.length === 0) {
+    return null; // Don't show anything if no stories
+  }
 
   return (
     <>
@@ -155,8 +171,8 @@ function CarCircle() {
                 <div className="w-[130px] h-[130px] rounded-full p-1 bg-gradient-to-r from-[#766CDF] via-[#B78BB2] to-[#DD9F84] flex items-center justify-center mx-auto hover:scale-110 transition-transform">
                   <div className="w-full h-full rounded-full overflow-hidden border-2 border-white">
                     <Image
-                      src={story.slides[0].image}
-                      alt={story.slides[0].alt || story.title || `Story ${index + 1}`}
+                      src={story.slides[0]?.image || "/images/cars/car-1.jpg"}
+                      alt={story.slides[0]?.alt || story.title || `Story ${index + 1}`}
                       width={130}
                       height={130}
                       className="object-cover w-full h-full"
