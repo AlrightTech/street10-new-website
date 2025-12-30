@@ -12,7 +12,9 @@ import {
 } from "react-icons/md";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
+import VerificationModal from "../ui/VerificationModal";
 import { homeApi } from "@/services/home.api";
 import type { Product } from "@/services/product.api";
 
@@ -32,10 +34,12 @@ interface SimpleCarSliderProps {
 }
 
 function CarSlider({ type = "products" }: SimpleCarSliderProps) {
+  const router = useRouter();
   const [prevEl, setPrevEl] = useState<HTMLDivElement | null>(null);
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -76,6 +80,29 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
 
     fetchProducts();
   }, [type]);
+
+  // Check if user is logged in
+  const checkAuthentication = (productId: string): boolean => {
+    if (typeof window === 'undefined') return false;
+    
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Not logged in - show registration modal
+      setIsVerificationModalOpen(true);
+      return false;
+    }
+    
+    // User is logged in - allow navigation
+    return true;
+  };
+
+  // Handle product click
+  const handleProductClick = (e: React.MouseEvent, productId: string) => {
+    e.preventDefault();
+    if (checkAuthentication(productId)) {
+      router.push(`/car-preview?id=${productId}&type=product`);
+    }
+  };
 
   // Transform product data to match the car format
   const cars = products.map((product) => {
@@ -132,8 +159,8 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
           ) : cars.length > 0 ? (
             cars.map((car, index) => (
               <SwiperSlide key={car.id || index}>
-                <Link
-                  href={`/car-preview?id=${car.id}&type=product`}
+                <div
+                  onClick={(e) => handleProductClick(e, car.id)}
                   className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
                 >
                   <div className="relative w-full flex-shrink-0">
@@ -174,7 +201,7 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
                       ))}
                     </div>
                   </div>
-                </Link>
+                </div>
               </SwiperSlide>
             ))
           ) : (
@@ -210,6 +237,14 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
           </button>
         </Link>
       </div>
+
+      {/* Registration Modal for non-logged-in users */}
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        context="ecommerce"
+        state="guest"
+      />
     </>
   );
 }

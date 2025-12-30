@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { authApi } from "@/services/auth.api";
@@ -19,6 +19,7 @@ export default function BuildVendorAccountPage() {
     contactPersonPhone: "",
     email: "",
     companyPhone: "",
+    password: "",
     // Business Details
     businessName: "",
     businessAddress: "",
@@ -30,8 +31,6 @@ export default function BuildVendorAccountPage() {
     companyRegistrationDoc: null as File | null,
     commercialLicense: null as File | null,
     image: null as File | null,
-    // Password (needed for registration)
-    password: "",
   });
 
   // Form Errors
@@ -41,37 +40,18 @@ export default function BuildVendorAccountPage() {
     contactPersonPhone: "",
     email: "",
     companyPhone: "",
+    password: "",
     businessName: "",
     businessAddress: "",
     city: "",
     state: "",
     zipCode: "",
     country: "",
-    password: "",
     companyRegistrationDoc: "",
     commercialLicense: "",
   });
 
-  // Load pre-filled data from signup page
-  useEffect(() => {
-    const savedData = localStorage.getItem('vendorSignupData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        setFormData(prev => ({
-          ...prev,
-          businessName: parsedData.businessName || prev.businessName,
-          email: parsedData.email || prev.email,
-          companyPhone: parsedData.phone || prev.companyPhone,
-          password: parsedData.password || prev.password,
-        }));
-        // Clear the saved data after using it
-        localStorage.removeItem('vendorSignupData');
-      } catch (error) {
-        console.error('Error parsing saved vendor data:', error);
-      }
-    }
-  }, []);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -90,6 +70,15 @@ export default function BuildVendorAccountPage() {
     if (file) {
       setFormData({ ...formData, [field]: file });
     }
+  };
+
+  // Helper function to validate phone number
+  const validatePhoneNumber = (phone: string): boolean => {
+    if (!phone || !phone.trim()) return false;
+    // Remove all non-digit characters for validation
+    const digitsOnly = phone.replace(/\D/g, '');
+    // Phone should have 10-15 digits
+    return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
   // Helper function to convert file to base64
@@ -153,6 +142,9 @@ export default function BuildVendorAccountPage() {
     if (!formData.contactPersonPhone?.trim()) {
       newErrors.contactPersonPhone = "Contact person phone number is required";
       hasErrors = true;
+    } else if (!validatePhoneNumber(formData.contactPersonPhone)) {
+      newErrors.contactPersonPhone = "Please enter a valid phone number (10-15 digits)";
+      hasErrors = true;
     }
     if (!formData.email?.trim()) {
       newErrors.email = "Email is required";
@@ -163,6 +155,9 @@ export default function BuildVendorAccountPage() {
     }
     if (!formData.companyPhone?.trim()) {
       newErrors.companyPhone = "Company phone number is required";
+      hasErrors = true;
+    } else if (!validatePhoneNumber(formData.companyPhone)) {
+      newErrors.companyPhone = "Please enter a valid phone number (10-15 digits)";
       hasErrors = true;
     }
     if (!formData.businessName?.trim()) {
@@ -245,6 +240,7 @@ export default function BuildVendorAccountPage() {
         state: formData.state,
         zipCode: formData.zipCode,
         country: formData.country,
+        ownerName: formData.name, // Store owner name in business details
         // Documents
         companyDocs: companyDocs,
         ownerIdUrl: null, // Can be added later if needed
@@ -527,6 +523,45 @@ export default function BuildVendorAccountPage() {
                     <p className="mt-1 text-sm text-red-500">{formErrors.companyPhone}</p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border ${
+                        formErrors.password ? "border-red-500" : "border-gray-200"
+                      } focus:ring-2 focus:ring-[#ee8e31] focus:border-transparent outline-none transition`}
+                      placeholder="Create a password (min 6 characters)"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {formErrors.password && (
+                    <p className="mt-1 text-sm text-red-500">{formErrors.password}</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -769,7 +804,7 @@ export default function BuildVendorAccountPage() {
               {/* Image Upload */}
               <div>
                 <label htmlFor="imageUpload" className="block text-sm font-medium text-gray-700 mb-2">
-                  Upload Image
+                  Upload Profile Image
                 </label>
                 <div
                   onClick={() => imageFileInputRef.current?.click()}
@@ -782,7 +817,7 @@ export default function BuildVendorAccountPage() {
                     accept=".jpg,.jpeg,.png,.gif,.webp"
                     onChange={(e) => handleFileChange(e, "image")}
                     className="hidden"
-                    aria-label="Upload Image"
+                    aria-label="Upload Profile Image"
                   />
                   <div className="flex flex-col items-center justify-center">
                     {/* Cloud Upload Icon */}
@@ -802,7 +837,7 @@ export default function BuildVendorAccountPage() {
                     <p className="text-gray-600 font-medium">
                       {formData.image
                         ? formData.image.name
-                        : "Upload Image"}
+                        : "Upload Profile Image"}
                     </p>
                     {formData.image && (
                       <div className="mt-4">

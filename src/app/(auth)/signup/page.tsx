@@ -12,7 +12,6 @@ export default function SignupPage() {
   const [activeTab, setActiveTab] = useState<"customer" | "vendor">("customer");
   const [loading, setLoading] = useState(false);
   const [showCustomerPassword, setShowCustomerPassword] = useState(false);
-  const [showVendorPassword, setShowVendorPassword] = useState(false);
   const customerImageInputRef = useRef<HTMLInputElement>(null);
   
   // Customer Form State
@@ -26,22 +25,6 @@ export default function SignupPage() {
 
   // Customer Form Errors
   const [customerErrors, setCustomerErrors] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-  });
-
-  // Vendor Form State
-  const [vendorData, setVendorData] = useState({
-    name: "", // Business Name
-    email: "",
-    phone: "",
-    password: "",
-  });
-
-  // Vendor Form Errors
-  const [vendorErrors, setVendorErrors] = useState({
     name: "",
     email: "",
     phone: "",
@@ -84,14 +67,6 @@ export default function SignupPage() {
     }
   };
 
-  const handleVendorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setVendorData({ ...vendorData, [name]: value });
-    // Clear error when user starts typing
-    if (vendorErrors[name as keyof typeof vendorErrors]) {
-      setVendorErrors({ ...vendorErrors, [name]: "" });
-    }
-  };
 
   const handleCustomerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,63 +237,6 @@ export default function SignupPage() {
     }
   };
 
-  const handleVendorSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields with specific error messages
-    if (!vendorData.name?.trim()) {
-      toast.error("Business name is required");
-      return;
-    }
-    if (!vendorData.email?.trim()) {
-      toast.error("Email is required");
-      return;
-    }
-    if (!vendorData.phone?.trim()) {
-      toast.error("Phone number is required");
-      return;
-    }
-    if (!vendorData.password || vendorData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await authApi.registerVendor({
-        name: vendorData.name,
-        email: vendorData.email,
-        phone: vendorData.phone,
-        password: vendorData.password,
-        provider: "email",
-      });
-
-      if (response.success && response.data) {
-        toast.success("Vendor account created successfully!");
-        // Store token, refresh token, and user data
-        if (response.data.token) {
-          localStorage.setItem("token", response.data.token);
-          if (response.data.refreshToken) {
-            localStorage.setItem("refreshToken", response.data.refreshToken);
-          }
-          localStorage.setItem("user", JSON.stringify(response.data.user));
-        }
-        // Redirect vendor to admin login page (different domain)
-        const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-        const email = encodeURIComponent(response.data.user.email || vendorData.email);
-        window.location.href = `${baseUrl}/login?email=${email}`;
-      }
-    } catch (error: any) {
-      console.error("Vendor signup error:", error);
-      const msg =
-        error?.response?.data?.error?.message ||
-        error?.response?.data?.message ||
-        "Signup failed";
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#efefef] flex items-center justify-center relative overflow-hidden py-10">
@@ -521,156 +439,35 @@ export default function SignupPage() {
               </button>
             </form>
           ) : (
-            <form onSubmit={(e) => { 
-              e.preventDefault(); 
-              
-              // Reset errors
-              setVendorErrors({ name: "", email: "", phone: "", password: "" });
-              
-              // Validate required fields before redirecting
-              let hasErrors = false;
-              const newErrors = { name: "", email: "", phone: "", password: "" };
-
-              if (!vendorData.name?.trim()) {
-                newErrors.name = "Business name is required";
-                hasErrors = true;
-              }
-              if (!vendorData.email?.trim()) {
-                newErrors.email = "Email is required";
-                hasErrors = true;
-              } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vendorData.email)) {
-                newErrors.email = "Please enter a valid email address";
-                hasErrors = true;
-              }
-              if (!vendorData.phone?.trim()) {
-                newErrors.phone = "Phone number is required";
-                hasErrors = true;
-              }
-              if (!vendorData.password) {
-                newErrors.password = "Password is required";
-                hasErrors = true;
-              } else if (vendorData.password.length < 6) {
-                newErrors.password = "Password must be at least 6 characters";
-                hasErrors = true;
-              }
-
-              if (hasErrors) {
-                setVendorErrors(newErrors);
-                return;
-              }
-              
-              // Save vendor data to localStorage for pre-filling on next page
-              localStorage.setItem('vendorSignupData', JSON.stringify({
-                businessName: vendorData.name,
-                email: vendorData.email,
-                phone: vendorData.phone,
-                password: vendorData.password
-              }));
-              router.push('/build-vendor-account'); 
-            }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Business Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={vendorData.name}
-                  onChange={handleVendorChange}
-                  required
-                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
-                    vendorErrors.name ? "border-red-500" : "border-gray-200"
-                  } focus:ring-2 focus:ring-orange-500 outline-none`}
-                  placeholder="Your Business Name"
-                />
-                {vendorErrors.name && (
-                  <p className="mt-1 text-sm text-red-500">{vendorErrors.name}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={vendorData.email}
-                  onChange={handleVendorChange}
-                  required
-                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
-                    vendorErrors.email ? "border-red-500" : "border-gray-200"
-                  } focus:ring-2 focus:ring-orange-500 outline-none`}
-                  placeholder="business@example.com"
-                />
-                {vendorErrors.email && (
-                  <p className="mt-1 text-sm text-red-500">{vendorErrors.email}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={vendorData.phone}
-                  onChange={handleVendorChange}
-                  required
-                  className={`w-full px-4 py-3 rounded-lg bg-gray-50 border ${
-                    vendorErrors.phone ? "border-red-500" : "border-gray-200"
-                  } focus:ring-2 focus:ring-orange-500 outline-none`}
-                  placeholder="+974..."
-                />
-                {vendorErrors.phone && (
-                  <p className="mt-1 text-sm text-red-500">{vendorErrors.phone}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showVendorPassword ? "text" : "password"}
-                    name="password"
-                    value={vendorData.password}
-                    onChange={handleVendorChange}
-                    required
-                    minLength={6}
-                    className={`w-full px-4 py-3 pr-12 rounded-lg bg-gray-50 border ${
-                      vendorErrors.password ? "border-red-500" : "border-gray-200"
-                    } focus:ring-2 focus:ring-orange-500 outline-none`}
-                    placeholder="Create a password (min 6 characters)"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowVendorPassword(!showVendorPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                  >
-                    {showVendorPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                {vendorErrors.password && (
-                  <p className="mt-1 text-sm text-red-500">{vendorErrors.password}</p>
-                )}
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  Register as Vendor
+                </h2>
+                <p className="text-gray-600">
+                  Complete your vendor registration to start selling on our platform
+                </p>
               </div>
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#ee8e31] text-white font-semibold py-3 rounded-lg hover:bg-[#d67a1f] transition disabled:opacity-50"
+                onClick={() => router.push('/build-vendor-account')}
+                className="flex items-center justify-center gap-3 bg-[#ee8e31] text-white font-semibold px-8 py-4 rounded-lg hover:bg-[#d67a1f] transition shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                {loading ? "Creating Account..." : "Sign Up as Vendor"}
+                <span>Register as Vendor</span>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
               </button>
-            </form>
+            </div>
           )}
 
           <div className="mt-6 text-center text-sm text-gray-600">
