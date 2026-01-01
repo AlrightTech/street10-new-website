@@ -13,9 +13,8 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
         {/* Logo + Links */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4 md:ms-12">
             <Image src="/icons/logo.svg" alt="Logo" width={40} height={40} />
-            <span className="font-semibold text-lg">Street10 mazaad</span>
           </div>
           <ul className="space-y-2 text-sm md:ms-12">
             <li>

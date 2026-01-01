@@ -12,11 +12,11 @@ import { resetUser } from "@/redux/authSlice";
 import { toast } from "react-hot-toast";
 
 const languages = [
-  { code: "en", name: "English", flag: "https://flagcdn.com/w20/gb.png" },
-  { code: "ur", name: "Urdu", flag: "https://flagcdn.com/w20/pk.png" },
-  { code: "fr", name: "French", flag: "https://flagcdn.com/w20/fr.png" },
-  { code: "de", name: "German", flag: "https://flagcdn.com/w20/de.png" },
-  { code: "ar", name: "Arabic", flag: "https://flagcdn.com/w20/sa.png" },
+  { code: "en", name: "English", flag: "https://flagcdn.com/w80/gb.png" },
+  { code: "ur", name: "Urdu", flag: "https://flagcdn.com/w80/pk.png" },
+  { code: "fr", name: "French", flag: "https://flagcdn.com/w80/fr.png" },
+  { code: "de", name: "German", flag: "https://flagcdn.com/w80/de.png" },
+  { code: "ar", name: "Arabic", flag: "https://flagcdn.com/w80/sa.png" },
 ];
 
 const Header = () => {
@@ -194,8 +194,10 @@ const Header = () => {
                         <Image
                           src={lang.flag}
                           alt={lang.name}
-                          width={20}
-                          height={20}
+                          width={24}
+                          height={24}
+                          className="rounded-full object-cover"
+                          unoptimized
                         />
                         <span className="text-sm">{lang.name}</span>
                       </div>
@@ -234,9 +236,10 @@ const Header = () => {
           <Image
             src={selectedLang.flag}
             alt={selectedLang.name}
-            width={50}
-            height={50}
-            className="h-10 w-10 rounded-full border border-gray-700"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-full border border-gray-700 object-cover"
+            unoptimized
           />
           <span
             onClick={() => setLangOpen(!langOpen)}
@@ -265,8 +268,10 @@ const Header = () => {
                   <Image
                     src={lang.flag}
                     alt={lang.name}
-                    width={20}
-                    height={20}
+                    width={24}
+                    height={24}
+                    className="rounded-full object-cover"
+                    unoptimized
                   />
                   <span>{lang.name}</span>
                 </div>

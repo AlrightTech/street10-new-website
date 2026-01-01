@@ -13,6 +13,7 @@ export interface Story {
   id: string | number;
   slides: StorySlide[];
   title?: string;
+  url?: string | null; // URL to open when story is clicked (Instagram, TikTok, YouTube, etc.)
 }
 
 interface StoryViewerProps {
@@ -314,7 +315,17 @@ export default function StoryViewer({
               <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-white/20 border-t-white rounded-full animate-spin shadow-lg" />
             </div>
           )}
-          <div className="relative w-full h-full animate-in fade-in duration-300">
+          <div 
+            className={`relative w-full h-full animate-in fade-in duration-300 ${currentStory.url ? 'cursor-pointer' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (currentStory.url) {
+                // Open URL in new tab
+                window.open(currentStory.url, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            title={currentStory.url ? 'Click to open link' : undefined}
+          >
             <Image
               src={currentSlide.image}
               alt={currentSlide.alt || `Story ${currentStoryIndex + 1} - Slide ${currentSlideIndex + 1}`}
@@ -325,6 +336,27 @@ export default function StoryViewer({
               onLoadingComplete={handleImageLoad}
               quality={90}
             />
+            {/* URL indicator icon */}
+            {currentStory.url && (
+              <div className="absolute top-4 left-4 z-30 bg-black/50 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="white" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                  className="animate-pulse"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </div>
+            )}
           </div>
         </div>
 

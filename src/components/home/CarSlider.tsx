@@ -30,7 +30,7 @@ const category = [
 ];
 
 // Client-side only countdown timer to prevent hydration mismatch
-const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
+const CountdownTimer = ({ targetDate, isScheduled = false }: { targetDate: Date; isScheduled?: boolean }) => {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
@@ -38,7 +38,9 @@ const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
       const now = new Date();
       const diff = targetDate.getTime() - now.getTime();
       
-      if (diff <= 0) return "Ended";
+      if (diff <= 0) {
+        return isScheduled ? "Started" : "Ended";
+      }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -54,7 +56,7 @@ const CountdownTimer = ({ targetDate }: { targetDate: Date }) => {
     }, 60000); // Update every minute
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [targetDate, isScheduled]);
 
   // Render a placeholder or empty string during SSR
   if (!timeLeft) return <span className="opacity-0">Loading...</span>;
@@ -168,36 +170,21 @@ function CarSlider() {
       ? parseFloat(auction.currentBid.amountMinor) / 100
       : 0;
     
-    // Calculate time remaining
-    // We use a static placeholder for SSR to avoid hydration mismatch
-    // The actual countdown should ideally be a separate component that updates live
-    // For now, we'll calculate it but we might need to suppress hydration warning or use a client-only wrapper
-    // A better approach for the slider is to just show the end date or use a client-side hook
-    
-    // To fix hydration error immediately:
-    // We will render a static string initially and update it on mount? 
-    // Or just suppress warning. 
-    // Let's try to make it deterministic for the first render if possible, or just use the end date string.
-    // However, the design shows a countdown format "Xd : Xh : Xm".
-    
-    // Let's use a simple approach: calculate it, but wrap the display in a component that handles hydration,
-    // OR simply accept that we need to fix the logic.
-    // Actually, the easiest fix for "Text content does not match server-rendered HTML" with dates
-    // is to ensure the initial render matches.
-    
-    const endDate = new Date(auction.endAt);
-    // const now = new Date(); // This causes the issue
-    
-    // We'll pass the endDate to the component and let it handle the display
-    // But here we are mapping to a 'car' object with a 'end' string property.
+    // For scheduled auctions, show time until start
+    // For live auctions, show time until end
+    const isScheduled = auction.state === 'scheduled';
+    const targetDate = isScheduled 
+      ? new Date(auction.startAt) 
+      : new Date(auction.endAt);
     
     return {
       id: auction.id,
       src: auction.product?.media?.[0]?.url || "/images/street/slider-1.jpg",
       bid: `${currentBid.toLocaleString()} QAR`,
-      endDate: endDate, // Pass date object instead of string
+      endDate: targetDate, // Pass date object for countdown
+      isScheduled: isScheduled, // Flag to determine countdown label
       plate: auction.product?.title || "Auction Item",
-      provider: ["Provided by us", "Auction", "Active"],
+      provider: ["Provided by us", "Auction", auction.state === 'scheduled' ? 'Scheduled' : 'Active'],
     };
   });
 
@@ -286,9 +273,11 @@ function CarSlider() {
                       bg-white/20 backdrop-blur-md shadow-lg w-[90%] sm:w-[85%] lg:w-[80%] pointer-events-none z-10"
                     >
                       <div className="text-center sm:text-left">
-                        <p className="text-xs sm:text-sm">Auction ends</p>
+                        <p className="text-xs sm:text-sm">
+                          {car.isScheduled ? 'Auction starts' : 'Auction ends'}
+                        </p>
                         <p className="text-sm font-medium mt-1">
-                          <CountdownTimer targetDate={car.endDate} />
+                          <CountdownTimer targetDate={car.endDate} isScheduled={car.isScheduled} />
                         </p>
                       </div>
                       <div className="text-center sm:text-right">

@@ -49,6 +49,7 @@ function CarCircle() {
           return {
             id: highlight.id,
             title: highlight.title,
+            url: highlight.url || null, // Include URL from API response
             slides: slides.length > 0 ? slides : [
               {
                 image: "/images/cars/car-1.jpg", // Fallback image

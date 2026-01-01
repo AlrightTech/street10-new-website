@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
-import TopHeader from "@/components/home/TopHeader";
 import Footer from "@/components/Footer";
 import { usePathname } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
@@ -31,8 +30,6 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
     <div className="relative h-screen flex flex-col">
       {loading && <PageLoader />}
       <header>
-        {/* TopHeader only on "/" */}
-        {pathname === "/" && <TopHeader />}
         <Header />
       </header>
 
