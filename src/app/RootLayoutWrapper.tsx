@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Favicon from "@/components/Favicon";
 import { usePathname } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 
@@ -28,6 +29,7 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
 
   return (
     <div className="relative h-screen flex flex-col">
+      <Favicon />
       {loading && <PageLoader />}
       <header>
         <Header />

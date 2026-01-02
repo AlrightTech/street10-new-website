@@ -2,11 +2,37 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { MdLocalPhone } from "react-icons/md";
 import { IoMail } from "react-icons/io5";
 import { MdLocationOn } from "react-icons/md";
+import { settingsApi, type PublicSettings } from "@/services/settings.api";
 
 export default function Footer() {
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await settingsApi.getPublicSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const logoUrl = settings?.logos?.websiteLogo || "/icons/logo.svg";
+  const phoneNumber = settings?.contact?.phoneNumbers?.[0]?.value || "";
+  const email = settings?.contact?.email?.value || "";
+  const address = settings?.contact?.address?.value || "";
+  const socialMediaLinks = settings?.contact?.socialMediaLinks || [];
+
   return (
     <footer className="w-full bg-[#4c50a2] text-white">
       {/* Top Section */}
@@ -14,7 +40,16 @@ export default function Footer() {
         {/* Logo + Links */}
         <div>
           <div className="flex items-center gap-2 mb-4 md:ms-12">
-            <Image src="/icons/logo.svg" alt="Logo" width={40} height={40} />
+            <Image 
+              src={logoUrl} 
+              alt="Logo" 
+              width={40} 
+              height={40}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/icons/logo.svg";
+              }}
+            />
           </div>
           <ul className="space-y-2 text-sm md:ms-12">
             <li>
@@ -48,33 +83,41 @@ export default function Footer() {
             Join us social platform to stay updated
           </h3>
           <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <MdLocalPhone size={16} /> +451 215 215
-            </div>
-            <div className="flex items-center gap-2">
-              <IoMail size={16} /> contact-us@street10.com
-            </div>
-            <div className="flex items-center gap-2">
-              <MdLocationOn size={16} /> 4140 Parker Rd.
-            </div>
+            {phoneNumber && (
+              <div className="flex items-center gap-2">
+                <MdLocalPhone size={16} /> {phoneNumber}
+              </div>
+            )}
+            {email && (
+              <div className="flex items-center gap-2">
+                <IoMail size={16} /> {email}
+              </div>
+            )}
+            {address && (
+              <div className="flex items-center gap-2">
+                <MdLocationOn size={16} /> {address}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 mt-4">
-            <Link href="https://linkedin.com" target="_blank">
-              <Image
-                src="/icons/lS.svg"
-                alt="LinkedIn"
-                width={24}
-                height={24}
-              />
-            </Link>
-            <Link href="https://facebook.com" target="_blank">
-              <Image
-                src="/icons/fS.svg"
-                alt="Facebook"
-                width={24}
-                height={24}
-              />
-            </Link>
+            {socialMediaLinks.map((link) => (
+              <Link key={link.id} href={link.url} target="_blank" rel="noopener noreferrer">
+                {link.icon ? (
+                  <Image
+                    src={link.icon}
+                    alt={link.name}
+                    width={24}
+                    height={24}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span className="text-white text-sm">{link.name}</span>
+                )}
+              </Link>
+            ))}
           </div>
         </div>
 

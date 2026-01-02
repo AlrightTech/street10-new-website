@@ -10,6 +10,7 @@ import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { resetUser } from "@/redux/authSlice";
 import { toast } from "react-hot-toast";
+import { settingsApi } from "@/services/settings.api";
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w80/gb.png" },
@@ -33,6 +34,7 @@ const Header = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState(languages[0]);
+  const [logoUrl, setLogoUrl] = useState<string>("/icons/logo.svg");
   const langRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -72,6 +74,20 @@ const Header = () => {
   };
 
   useEffect(() => {
+    // Fetch logo from API
+    const fetchLogo = async () => {
+      try {
+        const settings = await settingsApi.getPublicSettings();
+        if (settings?.logos?.websiteLogo) {
+          setLogoUrl(settings.logos.websiteLogo);
+        }
+      } catch (error) {
+        console.error("Failed to fetch logo:", error);
+      }
+    };
+
+    fetchLogo();
+
     function handleClickOutside(event: MouseEvent) {
       if (langRef.current && !langRef.current.contains(event.target as Node)) {
         setLangOpen(false);
@@ -225,7 +241,17 @@ const Header = () => {
 
         {/* Logo */}
         <Link href="/">
-          <Image src={"/icons/logo.svg"} alt="Logo" width={55} height={55} className="cursor-pointer" />
+          <Image 
+            src={logoUrl} 
+            alt="Logo" 
+            width={55} 
+            height={55} 
+            className="cursor-pointer"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/icons/logo.svg";
+            }}
+          />
         </Link>
 
         {/* Language Selector */}

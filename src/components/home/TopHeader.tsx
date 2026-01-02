@@ -1,13 +1,42 @@
+"use client";
+
 import Image from "next/image";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { IoIosArrowRoundForward } from "react-icons/io";
+import { settingsApi } from "@/services/settings.api";
 
 const TopHeader = () => {
+  const [logoUrl, setLogoUrl] = useState<string>("/icons/logo.svg");
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const settings = await settingsApi.getPublicSettings();
+        if (settings?.logos?.websiteLogo) {
+          setLogoUrl(settings.logos.websiteLogo);
+        }
+      } catch (error) {
+        console.error("Failed to fetch logo:", error);
+      }
+    };
+
+    fetchLogo();
+  }, []);
+
   return (
     <header className="bg-[#4C50A2] text-white h-16 w-full flex items-center px-4 md:px-6">
       {/* Logo - Left */}
       <div className="flex-shrink-0">
-        <Image src="/icons/logo.svg" alt="Logo" width={40} height={40} />
+        <Image 
+          src={logoUrl} 
+          alt="Logo" 
+          width={40} 
+          height={40}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = "/icons/logo.svg";
+          }}
+        />
       </div>
 
       {/* Center Content */}
