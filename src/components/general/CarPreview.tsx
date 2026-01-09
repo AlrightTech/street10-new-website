@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { CiCirclePlus } from "react-icons/ci";
 import { CiCircleMinus } from "react-icons/ci";
@@ -16,15 +17,71 @@ interface Car {
   bidder: string;
   timeLeft: string;
   images: string[];
+  type?: "auction" | "product"; // auction = bidding product, product = e-commerce/vendor product
 }
 
+type UserStatus = 'not_logged_in' | 'registered' | 'verification_pending' | 'verified';
+
 const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState(car.images[0]);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 1=verify, 2=deposit, 3=amount
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 1=verify/register, 2=deposit, 3=amount
   const [bidStep, setBidStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
   const [loading, setLoading] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [userStatus, setUserStatus] = useState<UserStatus>('not_logged_in');
   // 0=normal images, 1=red preview, 2=number plate preview, 3=back to normal after bid
+
+  // Check user status on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setUserStatus('not_logged_in');
+        // Non-registered users see step 1 (Register button)
+        return;
+      }
+
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.customerType === 'verified') {
+            setUserStatus('verified');
+            // For verified users, skip step 1 (register/verify) and go to step 2 (deposit) for auctions
+            // For e-commerce/vendor products, verified users can interact directly
+            if (car.type === 'auction') {
+              setStep(2);
+            } else {
+              // For e-commerce/vendor products, verified users can interact directly
+              setStep(3); // Skip to amount selection or buying
+            }
+          } else if (user.customerType === 'verification_pending') {
+            setUserStatus('verification_pending');
+            // For registered but not verified users on e-commerce/vendor products, allow interaction
+            // Only bidding products require verification
+            if (car.type !== 'auction') {
+              setStep(3); // Skip verification step for e-commerce/vendor products
+            }
+            // For bidding products, stay on step 1 to show verify button
+          } else {
+            setUserStatus('registered');
+            // For registered but not verified users on e-commerce/vendor products, allow interaction
+            // Only bidding products require verification
+            if (car.type !== 'auction') {
+              setStep(3); // Skip verification step for e-commerce/vendor products
+            }
+            // For bidding products, stay on step 1 to show verify button
+          }
+        } catch (error) {
+          console.error("Error parsing user:", error);
+          setUserStatus('not_logged_in');
+        }
+      } else {
+        setUserStatus('not_logged_in');
+      }
+    }
+  }, [car.type]);
 
   const handlePlaceBid = async () => {
     // Check if user is verified
@@ -69,11 +126,14 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
     setLoading(false);
   };
 
+  const handleRegister = () => {
+    // Navigate to registration page
+    router.push('/signup');
+  };
+
   const handleVerify = async () => {
-    setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStep(2);
-    setLoading(false);
+    // Navigate to verification page
+    router.push('/upload-cnic');
   };
 
   const handlePayDeposit = async () => {
@@ -194,20 +254,37 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
                   </>
                 )}
 
-                {/* Step Flow */}
+                {/* Step Flow - Show Register/Verify button for non-verified users */}
                 {step === 1 && (
                   <div className="bg-white rounded-xl shadow py-7 px-5 mt-3">
-                    <p className="text-gray-700 text-sm mb-3">
-                      You must verify your account first
-                    </p>
-                    <button
-                      onClick={handleVerify}
-                      disabled={loading}
-                      className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {loading ? <Loader size="sm" color="#ffffff" /> : null}
-                      {loading ? "Verifying..." : "Verify account"}
-                    </button>
+                    {userStatus === 'not_logged_in' ? (
+                      <>
+                        <p className="text-gray-700 text-sm mb-3">
+                          You must register first to interact with this product
+                        </p>
+                        <button
+                          onClick={handleRegister}
+                          className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold hover:bg-[#d67d1a] transition-colors flex items-center justify-center gap-2"
+                        >
+                          Register
+                        </button>
+                      </>
+                    ) : (
+                      // For registered but not verified users - show verify button only for bidding products
+                      car.type === 'auction' && (
+                        <>
+                          <p className="text-gray-700 text-sm mb-3">
+                            You must verify your account first to bid on this item
+                          </p>
+                          <button
+                            onClick={handleVerify}
+                            className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold hover:bg-[#d67d1a] transition-colors flex items-center justify-center gap-2"
+                          >
+                            Verify account
+                          </button>
+                        </>
+                      )
+                    )}
                   </div>
                 )}
 

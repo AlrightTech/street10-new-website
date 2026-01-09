@@ -9,6 +9,7 @@ import { PageLoader } from "@/components/ui/loader";
 export default function RootLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isAuthRoute = pathname?.startsWith("/login") || 
                       pathname?.startsWith("/create-acount") || 
                       pathname?.startsWith("/otp") || 
@@ -16,11 +17,17 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
                       pathname?.startsWith("/select-interests") || 
                       pathname?.startsWith("/set-password");
 
+  // Only show loading on initial mount, not on navigation
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, [pathname]);
+    if (isInitialLoad) {
+      setLoading(true);
+      const timer = setTimeout(() => {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialLoad]);
 
   // Don't show Header/Footer for auth routes
   if (isAuthRoute) {
@@ -28,14 +35,14 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="relative h-screen flex flex-col">
+    <div className="relative min-h-screen flex flex-col">
       <Favicon />
-      {loading && <PageLoader />}
-      <header>
+      {loading && isInitialLoad && <PageLoader />}
+      <header className="flex-shrink-0">
         <Header />
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 overflow-auto" key={pathname}>{children}</main>
 
       <Footer />
     </div>

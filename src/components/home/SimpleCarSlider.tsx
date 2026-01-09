@@ -14,7 +14,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
-import VerificationModal from "../ui/VerificationModal";
 import { homeApi } from "@/services/home.api";
 import type { Product } from "@/services/product.api";
 
@@ -39,7 +38,6 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -69,8 +67,16 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
             message: error?.message,
             code: error?.code,
             response: error?.response?.data,
-            url: error?.config?.url
+            url: error?.config?.url,
+            baseURL: error?.config?.baseURL
           });
+          
+          // Check if it's a timeout error
+          if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+            console.error(`[${type}] Request timed out. Please check if the backend is running on:`, error?.config?.baseURL);
+          } else if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+            console.error(`[${type}] Network error. Backend may be unavailable at:`, error?.config?.baseURL);
+          }
         }
         setProducts([]);
       } finally {
@@ -81,26 +87,15 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
     fetchProducts();
   }, [type]);
 
-  // Check if user is logged in
-  const checkAuthentication = (productId: string): boolean => {
-    if (typeof window === 'undefined') return false;
-    
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Not logged in - show registration modal
-      setIsVerificationModalOpen(true);
-      return false;
-    }
-    
-    // User is logged in - allow navigation
-    return true;
-  };
-
   // Handle product click
   const handleProductClick = (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
-    if (checkAuthentication(productId)) {
-      router.push(`/car-preview?id=${productId}&type=product`);
+    e.stopPropagation();
+    // Always navigate to detail page - registration/verification will be handled there
+    router.push(`/car-preview?id=${productId}&type=product`);
+    // Force scroll to top on navigation
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -237,14 +232,6 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
           </button>
         </Link>
       </div>
-
-      {/* Registration Modal for non-logged-in users */}
-      <VerificationModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        context="ecommerce"
-        state="guest"
-      />
     </>
   );
 }

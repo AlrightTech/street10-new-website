@@ -16,6 +16,7 @@ export const homeApi = {
       "/home/featured-auctions",
       {
         params: { limit },
+        timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );
     return response.data;
@@ -28,6 +29,7 @@ export const homeApi = {
       "/home/featured-products",
       {
         params: { limit },
+        timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );
     return response.data;
@@ -40,6 +42,7 @@ export const homeApi = {
       "/home/vendor-products",
       {
         params: { limit },
+        timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );
     return response.data;
@@ -66,6 +69,7 @@ export const homeApi = {
       };
     }>("/home/story-highlights", {
       params: { limit },
+      timeout: 60000, // 60 seconds timeout for home endpoints
     });
     return response.data;
   },

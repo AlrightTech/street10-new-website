@@ -14,7 +14,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
-import VerificationModal from "../ui/VerificationModal";
 import { homeApi } from "@/services/home.api";
 import type { Auction } from "@/services/auction.api";
 
@@ -70,11 +69,6 @@ function CarSlider() {
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
-  const [verificationState, setVerificationState] = useState<
-    "guest" | "need_verification" | "pending"
-  >("need_verification");
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -106,8 +100,16 @@ function CarSlider() {
             message: error?.message,
             code: error?.code,
             response: error?.response?.data,
-            url: error?.config?.url
+            url: error?.config?.url,
+            baseURL: error?.config?.baseURL
           });
+          
+          // Check if it's a timeout error
+          if (error?.code === 'ECONNABORTED' || error?.message?.includes('timeout')) {
+            console.error('[Auctions] Request timed out. Please check if the backend is running on:', error?.config?.baseURL);
+          } else if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
+            console.error('[Auctions] Network error. Backend may be unavailable at:', error?.config?.baseURL);
+          }
         }
         setAuctions([]);
       } finally {
@@ -118,49 +120,14 @@ function CarSlider() {
     fetchAuctions();
   }, []);
 
-  // Check if user is verified
-  const checkVerification = (carId: string) => {
-    if (typeof window === 'undefined') return false;
-    
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Not logged in - ask to register (and then verify)
-      setVerificationState("guest");
-      setIsVerificationModalOpen(true);
-      return false;
-    }
-
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user.customerType === "verified") {
-          return true;
-        }
-
-        if (user.customerType === "verification_pending") {
-          setVerificationState("pending");
-        } else {
-          setVerificationState("need_verification");
-        }
-
-        setSelectedCarId(carId);
-        setIsVerificationModalOpen(true);
-        return false;
-      } catch (error) {
-        console.error("Error parsing user:", error);
-      }
-    }
-    
-    setSelectedCarId(carId);
-    setIsVerificationModalOpen(true);
-    return false;
-  };
-
   const handleCarClick = (e: React.MouseEvent, carId: string) => {
     e.preventDefault();
-    if (checkVerification(carId)) {
-      router.push(`/car-preview?id=${carId}&type=auction`);
+    e.stopPropagation();
+    // Always navigate to detail page - verification/registration will be handled there
+    router.push(`/car-preview?id=${carId}&type=auction`);
+    // Force scroll to top on navigation
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -337,14 +304,6 @@ function CarSlider() {
           </button>
         </Link>
       </div>
-
-      {/* Verification Modal */}
-      <VerificationModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        context="bidding"
-        state={verificationState}
-      />
     </>
   );
 }

@@ -63,7 +63,18 @@ function CarCircle() {
         setStories(convertedStories);
       } catch (err: any) {
         console.error("Error fetching story highlights:", err);
-        setError(err.message || "Failed to load stories");
+        
+        // Check if it's a timeout error
+        if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+          console.error('[Story Highlights] Request timed out. Please check if the backend is running on:', err?.config?.baseURL);
+          setError("Backend connection timeout. Please ensure the backend server is running.");
+        } else if (err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+          console.error('[Story Highlights] Network error. Backend may be unavailable at:', err?.config?.baseURL);
+          setError("Cannot connect to backend server. Please check if the backend is running.");
+        } else {
+          setError(err.message || "Failed to load stories");
+        }
+        
         // Set empty array on error
         setStories([]);
       } finally {

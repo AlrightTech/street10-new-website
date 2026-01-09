@@ -3,7 +3,6 @@ import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
-import VerificationModal from "../ui/VerificationModal";
 import { auctionApi } from "@/services/auction.api";
 import type { Auction } from "@/services/auction.api";
 
@@ -20,11 +19,6 @@ function Cars() {
   const router = useRouter();
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
-  const [verificationState, setVerificationState] = useState<
-    "guest" | "need_verification" | "pending"
-  >("need_verification");
 
   useEffect(() => {
     const fetchAuctions = async () => {
@@ -46,53 +40,16 @@ function Cars() {
     fetchAuctions();
   }, []);
 
-  // Check if user is verified
-  const checkVerification = (carId: string) => {
-    if (typeof window === 'undefined') return false;
-    
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Not logged in - ask to register (and then verify)
-      setVerificationState("guest");
-      setIsVerificationModalOpen(true);
-      return false;
-    }
-
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user.customerType === "verified") {
-          // Verified - allow navigation
-          return true;
-        }
-
-        if (user.customerType === "verification_pending") {
-          // Already submitted KYC, show pending message
-          setVerificationState("pending");
-        } else {
-          // Registered but not verified yet
-          setVerificationState("need_verification");
-        }
-
-        setSelectedCarId(carId);
-        setIsVerificationModalOpen(true);
-        return false;
-      } catch (error) {
-        console.error("Error parsing user:", error);
-      }
-    }
-    
-    // No user data - show modal
-    setSelectedCarId(carId);
-    setIsVerificationModalOpen(true);
-    return false;
-  };
-
+  // Handle car click - always navigate to detail page
+  // Registration/verification will be handled on the detail page
   const handleCarClick = (e: React.MouseEvent, carId: string) => {
     e.preventDefault();
-    if (checkVerification(carId)) {
-      router.push(`/car-preview?id=${carId}&type=auction`);
+    e.stopPropagation();
+    // Always navigate to detail page - verification/registration will be handled there
+    router.push(`/car-preview?id=${carId}&type=auction`);
+    // Force scroll to top on navigation
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -203,13 +160,6 @@ function Cars() {
         )}
       </div>
 
-      {/* Verification Modal */}
-      <VerificationModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        context="bidding"
-        state={verificationState}
-      />
     </section>
   );
 }

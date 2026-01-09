@@ -31,6 +31,8 @@ export default function Footer() {
   const phoneNumber = settings?.contact?.phoneNumbers?.[0]?.value || "";
   const email = settings?.contact?.email?.value || "";
   const address = settings?.contact?.address?.value || "";
+  const footerOneFeatures = settings?.contact?.footerOneFeatures || [];
+  const footerTwoFeatures = settings?.contact?.footerTwoFeatures || [];
   const socialMediaLinks = settings?.contact?.socialMediaLinks || [];
 
   return (
@@ -52,12 +54,21 @@ export default function Footer() {
             />
           </div>
           <ul className="space-y-2 text-sm md:ms-12">
-            <li>
-              <Link href="#">Contact Us</Link>
-            </li>
-            <li>
-              <Link href="#">Help & Center</Link>
-            </li>
+            {footerOneFeatures.map((feature) => (
+              <li key={feature.id}>
+                <Link href={feature.link || "#"}>{feature.title}</Link>
+              </li>
+            ))}
+            {footerOneFeatures.length === 0 && (
+              <>
+                <li>
+                  <Link href="#">Contact Us</Link>
+                </li>
+                <li>
+                  <Link href="#">Help & Center</Link>
+                </li>
+              </>
+            )}
           </ul>
         </div>
 
@@ -65,15 +76,24 @@ export default function Footer() {
         <div>
           <h3 className="font-semibold mb-4">Features</h3>
           <ul className="space-y-2 text-sm">
-            <li>
-              <Link href="/bidding">Bidding</Link>
-            </li>
-            <li>
-              <Link href="/e-commerce">E-commerce</Link>
-            </li>
-            <li>
-              <Link href="/vendors">Vendors</Link>
-            </li>
+            {footerTwoFeatures.map((feature) => (
+              <li key={feature.id}>
+                <Link href={feature.link || "#"}>{feature.title}</Link>
+              </li>
+            ))}
+            {footerTwoFeatures.length === 0 && (
+              <>
+                <li>
+                  <Link href="/bidding">Bidding</Link>
+                </li>
+                <li>
+                  <Link href="/e-commerce">E-commerce</Link>
+                </li>
+                <li>
+                  <Link href="/vendors">Vendors</Link>
+                </li>
+              </>
+            )}
           </ul>
         </div>
 

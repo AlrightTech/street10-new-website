@@ -89,5 +89,45 @@ export const userApi = {
     }
     throw new Error(response.data.message || "Failed to request verification");
   },
+
+  /**
+   * Get current user's bidding history
+   */
+  getUserBids: async (params?: { page?: number; limit?: number }): Promise<{
+    success: boolean;
+    data: Array<{
+      id: string;
+      auctionId: string;
+      userId: string;
+      amountMinor: string;
+      placedAt: string;
+      isWinning: boolean;
+      auction: {
+        id: string;
+        endAt: string;
+        state: string;
+        product: {
+          id: string;
+          title: string;
+          media: Array<{
+            id: string;
+            url: string;
+            type: string;
+          }>;
+        };
+      };
+    }>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> => {
+    const response = await proxyClient.get<ApiResponse<Array<any>>>("/api/proxy/users/me/bids", {
+      params,
+    });
+    return response.data as any;
+  },
 };
 

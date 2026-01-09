@@ -3,7 +3,6 @@ import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
-import VerificationModal from "../ui/VerificationModal";
 import { productApi } from "@/services/product.api";
 import type { Product } from "@/services/product.api";
 
@@ -20,8 +19,6 @@ function Cars() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
-
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -59,24 +56,16 @@ function Cars() {
     };
   });
 
-  const checkCommerceAccess = () => {
-    if (typeof window === "undefined") return false;
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Not logged in - ask user to register
-      setIsVerificationModalOpen(true);
-      return false;
-    }
-
-    // Logged in customers can buy without extra verification
-    return true;
-  };
-
+  // Handle product click - always navigate to detail page
+  // Registration will be handled on the detail page
   const handleCarClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
-    if (checkCommerceAccess()) {
-      router.push(`/car-preview?id=${id}&type=product`);
+    e.stopPropagation();
+    // Always navigate to detail page - registration will be handled there
+    router.push(`/car-preview?id=${id}&type=product`);
+    // Force scroll to top on navigation
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -148,13 +137,6 @@ function Cars() {
         )}
       </div>
 
-      {/* Verification Modal for ecommerce products (guest users) */}
-      <VerificationModal
-        isOpen={isVerificationModalOpen}
-        onClose={() => setIsVerificationModalOpen(false)}
-        context="ecommerce"
-        state="guest"
-      />
     </section>
   );
 }

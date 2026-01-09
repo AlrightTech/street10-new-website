@@ -3,8 +3,7 @@ import Image from "next/image";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { auctionApi } from "@/services/auction.api";
-import type { Auction } from "@/services/auction.api";
+import { userApi } from "@/services/user.api";
 
 interface BidHistoryItem {
   id: string;
@@ -13,6 +12,7 @@ interface BidHistoryItem {
   yourBid: number;
   highestBid: number;
   auctionEnd: string;
+  auctionId: string;
 }
 
 export default function BiddingHistoryPage() {
@@ -25,53 +25,34 @@ export default function BiddingHistoryPage() {
     const fetchBiddingHistory = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with actual API call to get user's bidding history
-        // const response = await auctionApi.getUserBids();
-        // setBids(response.data || []);
+        const response = await userApi.getUserBids({ limit: 50 });
         
-        // Temporary mock data
-        setBids([
-          {
-            id: "1",
-            carImage: "/images/cars/car-1.jpg",
-            carMake: "BMW",
-            yourBid: 1200000,
-            highestBid: 1250000,
-            auctionEnd: "2023-10-10",
-          },
-          {
-            id: "2",
-            carImage: "/images/cars/car-2.jpg",
-            carMake: "BMW",
-            yourBid: 1200000,
-            highestBid: 1250000,
-            auctionEnd: "2023-10-10",
-          },
-          {
-            id: "3",
-            carImage: "/images/cars/car-3.jpg",
-            carMake: "BMW",
-            yourBid: 1200000,
-            highestBid: 1250000,
-            auctionEnd: "2023-10-10",
-          },
-          {
-            id: "4",
-            carImage: "/images/cars/car-4.jpg",
-            carMake: "BMW",
-            yourBid: 1200000,
-            highestBid: 1250000,
-            auctionEnd: "2023-10-10",
-          },
-          {
-            id: "5",
-            carImage: "/images/cars/car-5.jpg",
-            carMake: "BMW",
-            yourBid: 1200000,
-            highestBid: 1250000,
-            auctionEnd: "2023-10-10",
-          },
-        ]);
+        if (response.success && response.data) {
+          // Transform API response to BidHistoryItem format
+          const transformedBids: BidHistoryItem[] = response.data.map((bid) => {
+            const product = bid.auction?.product;
+            const firstMedia = product?.media?.[0];
+            const amountMinor = parseFloat(bid.amountMinor) || 0;
+            
+            // Get highest bid from auction (if available)
+            // For now, we'll use the user's bid as both values since we don't have highest bid in the response
+            const highestBid = amountMinor; // This would ideally come from the auction's current highest bid
+            
+            return {
+              id: bid.id,
+              auctionId: bid.auctionId,
+              carImage: firstMedia?.url || "/images/cars/car-1.jpg",
+              carMake: product?.title || "Product",
+              yourBid: amountMinor / 100, // Convert from minor units to major units
+              highestBid: highestBid / 100,
+              auctionEnd: bid.auction?.endAt ? new Date(bid.auction.endAt).toISOString().split('T')[0] : "",
+            };
+          });
+          
+          setBids(transformedBids);
+        } else {
+          setBids([]);
+        }
       } catch (error) {
         console.error("Error fetching bidding history:", error);
         setBids([]);
@@ -185,7 +166,7 @@ export default function BiddingHistoryPage() {
 
                 {/* Increase Bid Button */}
                 <div className="flex-shrink-0">
-                  <Link href={`/bidding-history/increase-bid?id=${bid.id}`}>
+                  <Link href={`/bidding-history/increase-bid?id=${bid.auctionId}`}>
                     <button className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition">
                       Increase Bid
                     </button>
