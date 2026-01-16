@@ -37,10 +37,12 @@ function Page() {
         const fetchedProduct: Product = response.data.product;
 
         if (isMountedRef.current) {
-          setProduct({
+          // Transform product to include images array for ProductPreview component
+          const productWithImages = {
             ...fetchedProduct,
             images: fetchedProduct.media?.map((m) => m.url) || ["/images/cars/car-1.jpg"],
-          });
+          } as Product & { images: string[] };
+          setProduct(productWithImages);
         }
       } catch (error) {
         console.error("Error fetching product data:", error);

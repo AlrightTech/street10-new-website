@@ -142,7 +142,7 @@ function AuthPage() {
         email: email || undefined,
       });
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.token) {
         localStorage.setItem("token", response.data.token);
         if (response.data.refreshToken) {
           localStorage.setItem("refreshToken", response.data.refreshToken);

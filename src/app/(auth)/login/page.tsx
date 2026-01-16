@@ -33,7 +33,7 @@ export default function LoginPage() {
         password: formData.password,
       });
 
-      if (response.success) {
+      if (response.success && response.data.token) {
         toast.success("Login successful!");
         // Store token and refresh token
         localStorage.setItem("token", response.data.token);
