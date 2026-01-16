@@ -53,8 +53,8 @@ export default function LoginPage() {
           const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
           window.location.href = `${baseUrl}/dashboard`;
         } else {
-          // Customer stays on same domain - use router
-          router.push("/");
+          // Customer stays on same domain - use window.location for immediate navigation
+          window.location.href = "/";
         }
       }
     } catch (error: any) {

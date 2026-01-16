@@ -79,7 +79,15 @@ function Cars() {
               key={car.id || index}
               className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full"
             >
-            <Link href={"/vendor"}>
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Navigate to product detail page for vendor products
+                window.location.href = `/product-preview?id=${car.id}`;
+              }}
+              className="cursor-pointer"
+            >
               {/* Image Section */}
               <div className="relative w-full flex-shrink-0">
                 <Image
@@ -126,7 +134,7 @@ function Cars() {
                   <p> {car.brand}</p>
                 </div>
               </div>
-            </Link>
+            </div>
           </div>
           ))
         ) : (

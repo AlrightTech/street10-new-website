@@ -164,42 +164,56 @@ export default function SignupPage() {
       }
 
       if (response.success && response.data) {
-        toast.success("Account created successfully!");
-        // Store token, refresh token, and user data
-        if (response.data.token) {
-          localStorage.setItem("token", response.data.token);
-          if (response.data.refreshToken) {
-            localStorage.setItem("refreshToken", response.data.refreshToken);
-          }
-          localStorage.setItem("user", JSON.stringify(response.data.user));
-          
-          // Dispatch custom event to notify Header component of auth state change
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new Event("authStateChanged"));
-          }
-        }
-        // Redirect based on role
-        if (response.data.user.role === "vendor") {
-          // Vendor should manage account in admin panel only.
-          // Log out from website context before redirecting to admin.
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("token");
-            localStorage.removeItem("refreshToken");
-            localStorage.removeItem("user");
-            window.dispatchEvent(new Event("authStateChanged"));
-          }
-
-          // Vendor goes to admin panel login page (different domain)
-          const baseUrl =
-            process.env.NEXT_PUBLIC_ADMIN_URL ||
-            "https://street10-admin.vercel.app";
+        // Check if OTP verification is required (no token means OTP verification needed)
+        const needsOTPVerification = !response.data.token || 
+          response.data.user.status === "pending_email" || 
+          response.data.user.status === "pending_phone";
+        
+        if (needsOTPVerification) {
+          // OTP verification required - redirect to OTP page
+          toast.success("Account created! Please verify your email.");
           const email = encodeURIComponent(
             response.data.user.email || customerData.email
           );
-          window.location.href = `${baseUrl}/login?email=${email}`;
+          window.location.href = `/otp2?email=${email}`;
         } else {
-          // Customer stays on same domain - use router
-          router.push("/");
+          // Account already verified - store tokens and redirect
+          toast.success("Account created successfully!");
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+            if (response.data.refreshToken) {
+              localStorage.setItem("refreshToken", response.data.refreshToken);
+            }
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+            
+            // Dispatch custom event to notify Header component of auth state change
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("authStateChanged"));
+            }
+          }
+          // Redirect based on role
+          if (response.data.user.role === "vendor") {
+            // Vendor should manage account in admin panel only.
+            // Log out from website context before redirecting to admin.
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("token");
+              localStorage.removeItem("refreshToken");
+              localStorage.removeItem("user");
+              window.dispatchEvent(new Event("authStateChanged"));
+            }
+
+            // Vendor goes to admin panel login page (different domain)
+            const baseUrl =
+              process.env.NEXT_PUBLIC_ADMIN_URL ||
+              "https://street10-admin.vercel.app";
+            const email = encodeURIComponent(
+              response.data.user.email || customerData.email
+            );
+            window.location.href = `${baseUrl}/login?email=${email}`;
+          } else {
+            // Customer stays on same domain - use window.location for immediate navigation
+            window.location.href = "/";
+          }
         }
       }
     } catch (error: any) {
@@ -449,7 +463,10 @@ export default function SignupPage() {
                 </p>
               </div>
               <button
-                onClick={() => router.push('/build-vendor-account')}
+                onClick={() => {
+                  // Use window.location for immediate navigation
+                  window.location.href = '/build-vendor-account';
+                }}
                 className="flex items-center justify-center gap-3 bg-[#ee8e31] text-white font-semibold px-8 py-4 rounded-lg hover:bg-[#d67a1f] transition shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <span>Register as Vendor</span>

@@ -2,7 +2,6 @@
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { orderApi } from "@/services/order.api";
 import type { Order } from "@/services/order.api";
 
@@ -135,17 +134,19 @@ export default function OrderHistoryPage() {
           >
             Order History
           </button>
-          <Link href="/bidding-history">
-            <button
-              className={`px-6 py-2 font-medium transition rounded-full ${
-                activeTab === "bidding"
-                  ? "bg-[#EE8E32] text-white shadow-md"
-                  : "text-gray-600 bg-transparent"
-              }`}
-            >
-              Bidding History
-            </button>
-          </Link>
+          <button
+            onClick={() => {
+              // Use full-page navigation for immediate response
+              window.location.href = "/bidding-history";
+            }}
+            className={`px-6 py-2 font-medium transition rounded-full ${
+              activeTab === "bidding"
+                ? "bg-[#EE8E32] text-white shadow-md"
+                : "text-gray-600 bg-transparent"
+            }`}
+          >
+            Bidding History
+          </button>
         </div>
 
         {/* Order History List */}
@@ -191,11 +192,14 @@ export default function OrderHistoryPage() {
 
                 {/* View Order Button */}
                 <div className="flex-shrink-0">
-                  <Link href={`/order-details?id=${order.orderId || index}`}>
-                    <button className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap">
-                      View Order
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => {
+                      window.location.href = `/order-details?id=${order.orderId || index}`;
+                    }}
+                    className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
+                  >
+                    View Order
+                  </button>
                 </div>
               </div>
             ))

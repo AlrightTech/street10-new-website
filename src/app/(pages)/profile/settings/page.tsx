@@ -31,7 +31,7 @@ export default function ProfileSettings() {
       const token = localStorage.getItem("token");
       if (!token) {
         toast.error("Please login to view your profile");
-        router.push("/login");
+        window.location.href = "/login";
         return;
       }
 
@@ -50,8 +50,9 @@ export default function ProfileSettings() {
         setOriginalData(initialData);
       } catch (error: any) {
         console.error("Error fetching user data:", error);
-        if (error.response?.status === 401 || error.response?.status === 403) {
+        if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 404) {
           localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
           
           // Dispatch custom event to notify Header component of auth state change
@@ -59,8 +60,13 @@ export default function ProfileSettings() {
             window.dispatchEvent(new Event("authStateChanged"));
           }
           
-          toast.error("Session expired. Please login again.");
-          router.push("/login");
+          // Show user-friendly message
+          toast.error("Your account is no longer available. Please login again.", {
+            duration: 4000,
+          });
+          
+          // Use window.location for immediate navigation
+          window.location.href = "/login";
           return;
         } else {
           toast.error(error.message || "Failed to load profile.");

@@ -28,7 +28,13 @@ export default function Header() {
 
   return (
     <div className=" flex items-center justify-between px-10  bg-white w-full">
-      <Link href="/">
+      <a
+        href="/"
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.href = "/";
+        }}
+      >
         <Image 
           src={logoUrl} 
           alt="Logo" 
@@ -39,15 +45,19 @@ export default function Header() {
             target.src = "/icons/logo.svg";
           }}
         />
-      </Link>
+      </a>
 
       {!isSignupPage && (
-        <Link
+        <a
           href="/signup"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = "/signup";
+          }}
           className="bg-[#ee8e31]  cursor-pointer text-white px-8 py-3 rounded-md font-semibold  transition"
         >
           Join Us
-        </Link>
+        </a>
       )}
     </div>
   );

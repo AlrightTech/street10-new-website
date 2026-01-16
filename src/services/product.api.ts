@@ -17,6 +17,27 @@ export interface Product {
     id: string;
     name: string;
   }>;
+  documents?: Array<{
+    id: string;
+    url: string;
+    title: string;
+    displayOrder: number;
+  }>;
+  filterValues?: Array<{
+    id: string;
+    filterId: string;
+    value: string;
+    filter: {
+      id: string;
+      key: string;
+      type: string;
+      iconUrl?: string;
+      i18n?: {
+        en?: { label: string };
+        ar?: { label: string };
+      };
+    };
+  }>;
   vendor?: {
     id: string;
     name: string;

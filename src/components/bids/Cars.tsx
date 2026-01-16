@@ -45,12 +45,8 @@ function Cars() {
   const handleCarClick = (e: React.MouseEvent, carId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Always navigate to detail page - verification/registration will be handled there
+    // Direct navigation - guaranteed to work
     router.push(`/car-preview?id=${carId}&type=auction`);
-    // Force scroll to top on navigation
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   // Transform auction data to match the car format

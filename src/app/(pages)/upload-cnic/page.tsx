@@ -105,7 +105,7 @@ export default function UploadCNICPage() {
       
       toast.success("CNIC documents submitted successfully! Verification pending.");
       
-      // Show approval modal instead of redirecting
+      // Show approval modal
       setIsApprovalModalOpen(true);
     } catch (error: any) {
       console.error("Error uploading CNIC:", error);
@@ -306,7 +306,8 @@ export default function UploadCNICPage() {
         isOpen={isApprovalModalOpen}
         onClose={() => {
           setIsApprovalModalOpen(false);
-          router.push("/profile");
+          // Navigate to home page after closing modal
+          window.location.href = "/";
         }}
       />
     </div>

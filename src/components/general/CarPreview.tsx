@@ -12,7 +12,7 @@ import { Loader } from "../ui/loader";
 interface Car {
   id: number;
   name: string;
-  status: "Ready" | "Sold" | "Pending";
+  status: "Ready" | "Sold" | "Pending" | "Live" | "Ended" | "Settled";
   lastBid: string;
   bidder: string;
   timeLeft: string;
@@ -93,7 +93,7 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
           if (user.customerType !== 'verified') {
             // Show verification required message
             alert("Please verify your account first to place bids. You will be redirected to the verification page.");
-            window.location.href = "/upload-cnic";
+            router.push("/upload-cnic");
             return;
           }
         } catch (error) {
@@ -101,7 +101,7 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
         }
       } else {
         alert("Please login to place bids");
-        window.location.href = "/login";
+        router.push("/login");
         return;
       }
     }
@@ -214,17 +214,17 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
               <div>
                 <h2 className="text-lg lg:text-2xl font-semibold">
                   {bidStep < 1
-                    ? "GLC 300 Coupe"
+                    ? car.name
                     : bidStep == 1
                     ? "Phone number 123-4567-#"
                     : bidStep == 3 || bidStep == 4
-                    ? "GLC 300 Coupe"
+                    ? car.name
                     : "Plate no. 12345#"}
                   <span
                     className={`text-sm font-medium ms-4 ${
-                      car.status === "Ready"
+                      car.status === "Ready" || car.status === "Live"
                         ? "text-[#038001]"
-                        : car.status === "Sold"
+                        : car.status === "Sold" || car.status === "Ended" || car.status === "Settled"
                         ? "text-red-600"
                         : "text-[#ee8e31]"
                     }`}
@@ -388,8 +388,8 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
             </div>
           </div>
 
-          <CarInfo />
-          {(bidStep == 0 || bidStep == 3 || bidStep == 4) && <AboutCar />}
+          <CarInfo documents={car.documents || []} description={car.product?.description || car.auction?.product?.description || ""} />
+          {(bidStep == 0 || bidStep == 3 || bidStep == 4) && <AboutCar filterValues={car.filterValues || []} />}
         </>
       ) : (
         <Address />

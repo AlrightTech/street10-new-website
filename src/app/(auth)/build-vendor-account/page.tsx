@@ -291,36 +291,51 @@ export default function BuildVendorAccountPage() {
       }
 
       if (response.success && response.data) {
-        toast.success("Vendor account created successfully!");
-        // Store token, refresh token, and user data (website context)
-        if (response.data.token) {
-          localStorage.setItem("token", response.data.token);
-          if (response.data.refreshToken) {
-            localStorage.setItem("refreshToken", response.data.refreshToken);
+        // Check if OTP verification is required (no token means OTP verification needed)
+        const needsOTPVerification = !response.data.token || 
+          response.data.user.status === "pending_email" || 
+          response.data.user.status === "pending_phone";
+        
+        if (needsOTPVerification) {
+          // OTP verification required - redirect to OTP page
+          toast.success("Vendor account created! Please verify your email.");
+          const email = encodeURIComponent(
+            response.data.user.email || formData.email
+          );
+          window.location.href = `/otp2?email=${email}`;
+        } else {
+          // Account already verified - store tokens and redirect
+          toast.success("Vendor account created successfully!");
+          // Store token, refresh token, and user data (website context)
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+            if (response.data.refreshToken) {
+              localStorage.setItem("refreshToken", response.data.refreshToken);
+            }
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+            
+            // Dispatch custom event to notify Header component of auth state change
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("authStateChanged"));
+            }
           }
-          localStorage.setItem("user", JSON.stringify(response.data.user));
-          
-          // Dispatch custom event to notify Header component of auth state change
+
+          // Before moving vendor to admin panel, log them out from website
           if (typeof window !== "undefined") {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
             window.dispatchEvent(new Event("authStateChanged"));
           }
-        }
 
-        // Before moving vendor to admin panel, log them out from website
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          window.dispatchEvent(new Event("authStateChanged"));
+          // Redirect to vendor admin login page
+          const baseUrl =
+            process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+          const email = encodeURIComponent(
+            response.data.user.email || formData.email
+          );
+          window.location.href = `${baseUrl}/login?email=${email}`;
         }
-
-        // Redirect to vendor admin login page
-        const baseUrl =
-          process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
-        const email = encodeURIComponent(
-          response.data.user.email || formData.email
-        );
-        window.location.href = `${baseUrl}/login?email=${email}`;
       }
     } catch (error: any) {
       console.error("Vendor registration error:", error);

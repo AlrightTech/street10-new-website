@@ -123,12 +123,8 @@ function CarSlider() {
   const handleCarClick = (e: React.MouseEvent, carId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Always navigate to detail page - verification/registration will be handled there
+    // Navigate using Next.js router
     router.push(`/car-preview?id=${carId}&type=auction`);
-    // Force scroll to top on navigation
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   // Transform auction data to match the car format
@@ -298,11 +294,12 @@ function CarSlider() {
       </section>
 
       <div className="flex justify-center my-10">
-        <Link href="/bidding">
-          <button className="bg-[#EE8E32] cursor-pointer transition px-8 py-3 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-[#d67a1f]">
-            Explore more <FaArrowDown className="animate-bounce" />
-          </button>
-        </Link>
+        <button
+          onClick={() => router.push("/bidding")}
+          className="bg-[#EE8E32] cursor-pointer transition px-8 py-3 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-[#d67a1f]"
+        >
+          Explore more <FaArrowDown className="animate-bounce" />
+        </button>
       </div>
     </>
   );

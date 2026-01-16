@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { HiOutlineMenuAlt1 } from "react-icons/hi";
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useDispatch } from "react-redux";
@@ -152,7 +151,7 @@ const Header = () => {
     setUserRole(null);
     
     // Redirect to login
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   return (
@@ -163,31 +162,36 @@ const Header = () => {
         {/* Mobile Menu */}
         <div className="block lg:hidden">
           <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <SheetTrigger>
-              <HiOutlineMenuAlt1 className="h-6 w-6 text-gray-700" />
+            <SheetTrigger asChild>
+              <button type="button" aria-label="Open menu">
+                <HiOutlineMenuAlt1 className="h-6 w-6 text-gray-700" />
+              </button>
             </SheetTrigger>
             <SheetContent side="left" className="bg-white">
               <nav className="flex flex-col space-y-4 px-4 pt-5 text-gray-700  text-lg font-semibold">
-                {["Home", "Auction", "E-commerce", "Vendors"].map((item) => (
-                  <Link
-                    key={item}
-                    href={
-                      item === "Home"
-                        ? "/"
-                        : item === "Auction"
-                        ? "/bidding"
-                        : `/${item.toLowerCase().replace(/\s+/g, "-")}`
-                    }
-                    className={`hover:text-[#EE8E32] cursor-pointer transition ${
-                      activeTab === item ? "text-[#EE8E32]" : ""
-                    }`}
-                    onClick={() => {
-                      setDrawerOpen(false);
-                    }}
-                  >
-                    {item}
-                  </Link>
-                ))}
+                {["Home", "Auction", "E-commerce", "Vendors"].map((item) => {
+                  const href = item === "Home"
+                    ? "/"
+                    : item === "Auction"
+                    ? "/bidding"
+                    : `/${item.toLowerCase().replace(/\s+/g, "-")}`;
+                  return (
+                    <a
+                      key={item}
+                      href={href}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setDrawerOpen(false);
+                        window.location.href = href;
+                      }}
+                      className={`hover:text-[#EE8E32] cursor-pointer transition ${
+                        activeTab === item ? "text-[#EE8E32]" : ""
+                      }`}
+                    >
+                      {item}
+                    </a>
+                  );
+                })}
 
                 {/* Language Selector - Mobile Only */}
 
@@ -223,16 +227,15 @@ const Header = () => {
 
                 {/* Join Us Button - Mobile Only (only when not logged in) */}
                 {pathname === "/" && !isLoggedIn && (
-                  <Link href={"/signup"}>
-                    <button
-                      onClick={() => {
-                        setDrawerOpen(false); // 👈 sheet close
-                      }}
-                      className="mt-6 cursor-pointer rounded-md bg-[#ee8e31] px-4 py-2 text-white font-medium shadow  transition lg:hidden"
-                    >
-                      Join Us
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      window.location.href = "/signup";
+                    }}
+                    className="mt-6 cursor-pointer rounded-md bg-[#ee8e31] px-4 py-2 text-white font-medium shadow  transition lg:hidden"
+                  >
+                    Join Us
+                  </button>
                 )}
               </nav>
             </SheetContent>
@@ -240,7 +243,13 @@ const Header = () => {
         </div>
 
         {/* Logo */}
-        <Link href="/">
+        <a
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = "/";
+          }}
+        >
           <Image 
             src={logoUrl} 
             alt="Logo" 
@@ -252,7 +261,7 @@ const Header = () => {
               target.src = "/icons/logo.svg";
             }}
           />
-        </Link>
+        </a>
 
         {/* Language Selector */}
         <div
@@ -310,32 +319,43 @@ const Header = () => {
       {/* Center / Right Navigation */}
       <div className="flex-1 flex justify-end gap-10 me-16">
         <nav className="hidden lg:flex items-center gap-8 text-lg font-semibold">
-          {["Home", "Auction", "E-commerce", "Vendors"].map((item) => (
-            <Link
-              key={item}
-              href={
-                item === "Home"
-                  ? "/"
-                  : item === "Auction"
-                  ? "/bidding"
-                  : `/${item.toLowerCase().replace(/\s+/g, "-")}`
-              }
-              className={`cursor-pointer transition ${
-                activeTab === item
-                  ? "text-[#EE8E32]"
-                  : "text-black hover:text-[#EE8E32]"
-              }`}
-            >
-              {item}
-            </Link>
-          ))}
+          {["Home", "Auction", "E-commerce", "Vendors"].map((item) => {
+            const href = item === "Home"
+              ? "/"
+              : item === "Auction"
+              ? "/bidding"
+              : `/${item.toLowerCase().replace(/\s+/g, "-")}`;
+            return (
+              <a
+                key={item}
+                href={href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = href;
+                }}
+                className={`cursor-pointer transition ${
+                  activeTab === item
+                    ? "text-[#EE8E32]"
+                    : "text-black hover:text-[#EE8E32]"
+                }`}
+              >
+                {item}
+              </a>
+            );
+          })}
         </nav>
       </div>
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
         {/* Search */}
-        <Link href="/bidding">
+        <a
+          href="/bidding"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = "/bidding";
+          }}
+        >
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 cursor-pointer hover:bg-gray-200 transition">
             <Image
               className="w-5 h-5 "
@@ -345,7 +365,7 @@ const Header = () => {
               height={20}
             />
           </div>
-        </Link>
+        </a>
 
         <div ref={bellRef} className="relative">
           <div
@@ -377,7 +397,7 @@ const Header = () => {
               if (!token || !userStr) {
                 e.preventDefault();
                 toast.error("Please login to view your profile");
-                router.push("/login");
+                window.location.href = "/login";
                 return;
               }
 
@@ -397,11 +417,11 @@ const Header = () => {
                   window.location.href = `${baseUrl}/settings/profile`;
                 } else {
                   // Normal customers go to customer profile page
-                  router.push("/profile");
+                  window.location.href = "/profile";
                 }
               } catch (error) {
                 console.error("Failed to parse user from localStorage:", error);
-                router.push("/login");
+                window.location.href = "/login";
               }
             }}
             className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 cursor-pointer"
@@ -416,7 +436,10 @@ const Header = () => {
           </button>
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-lg p-3 z-50">
-              <Link href="#">
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+              >
                 <div className="flex items-center gap-3 border-b pb-2 mb-2">
                   <Image
                     className="w-7 h-7 "
@@ -427,7 +450,7 @@ const Header = () => {
                   />
                   <p className="text-sm font-medium text-black">Jon Do</p>
                 </div>
-              </Link>
+              </a>
               <button 
                 onClick={handleLogoutClick}
                 className="flex w-full items-center justify-between rounded-md p-2 cursor-pointer text-sm text-gray-700 hover:bg-gray-100"
@@ -439,11 +462,14 @@ const Header = () => {
         </div>
         {/* Join Us Button - Desktop (only when not logged in) */}
         {pathname === "/" && !isLoggedIn && (
-          <Link href={"/signup"}>
-            <button className="hidden lg:inline-block ms-12 cursor-pointer rounded-md bg-[#ee8e31] px-4 py-2 text-white font-medium shadow transition">
-              Join Us
-            </button>
-          </Link>
+          <button
+            onClick={() => {
+              window.location.href = "/signup";
+            }}
+            className="hidden lg:inline-block ms-12 cursor-pointer rounded-md bg-[#ee8e31] px-4 py-2 text-white font-medium shadow transition"
+          >
+            Join Us
+          </button>
         )}
       </div>
     </header>

@@ -87,16 +87,12 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
     fetchProducts();
   }, [type]);
 
-  // Handle product click
+  // Handle product click - navigate to e-commerce product detail page
   const handleProductClick = (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Always navigate to detail page - registration/verification will be handled there
-    router.push(`/car-preview?id=${productId}&type=product`);
-    // Force scroll to top on navigation
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Navigate to dedicated product detail page for e-commerce products
+    window.location.href = `/product-preview?id=${productId}`;
   };
 
   // Transform product data to match the car format
@@ -226,11 +222,14 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
       </section>
 
       <div className="flex justify-center my-10">
-        <Link href="/e-commerce">
-          <button className="bg-[#EE8E32] cursor-pointer transition px-8 py-3 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-[#d67a1f]">
-            Explore more <FaArrowDown className="animate-bounce" />
-          </button>
-        </Link>
+        <button
+          onClick={() => {
+            window.location.href = "/e-commerce";
+          }}
+          className="bg-[#EE8E32] cursor-pointer transition px-8 py-3 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-[#d67a1f]"
+        >
+          Explore more <FaArrowDown className="animate-bounce" />
+        </button>
       </div>
     </>
   );

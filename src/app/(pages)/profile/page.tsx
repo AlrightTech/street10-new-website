@@ -1,7 +1,6 @@
 "use client";
 import Image from "next/image";
 import React, { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
@@ -171,9 +170,10 @@ export default function Profile() {
         }
       } catch (error: any) {
         console.error("Error fetching user data:", error);
-        // If unauthorized or token invalid, redirect to login
-        if (error.response?.status === 401 || error.response?.status === 403) {
+        // If unauthorized, forbidden, or user not found (deleted), redirect to login
+        if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 404) {
           localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
           dispatch(resetUser());
           
@@ -182,7 +182,12 @@ export default function Profile() {
             window.dispatchEvent(new Event("authStateChanged"));
           }
           
-          toast.error("Session expired. Please login again.");
+          // Show user-friendly message
+          toast.error("Your account is no longer available. Please login again.", {
+            duration: 4000,
+          });
+          
+          // Redirect to login
           router.push("/login");
           return;
         } else {
@@ -215,8 +220,8 @@ export default function Profile() {
     // Show success message
     toast.success("Logged out successfully");
     
-    // Redirect to login
-    router.push("/login");
+    // Redirect to login - use window.location for immediate navigation
+    window.location.href = "/login";
   };
 
   const handleLanguageSelect = (language: string) => {
@@ -333,60 +338,77 @@ export default function Profile() {
           {/* Menu List */}
           <div className="rounded-lg overflow-hidden space-y-5">
             {/* Balance */}
-            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200">
-            <div className="flex items-center gap-3 text-[#666666]">
-              <GoCreditCard size={18} />
-              <span>Balance</span>
+            <div 
+              onClick={() => {
+                window.location.href = "/profile/wallet-refund-request";
+              }}
+              className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200"
+            >
+              <div className="flex items-center gap-3 text-[#666666]">
+                <GoCreditCard size={18} />
+                <span>Balance</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[#EE8E32] font-semibold">QAR {walletBalance}</span>
+                <MdKeyboardArrowRight color="#666666" size={20} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[#EE8E32] font-semibold">QAR {walletBalance}</span>
-              <MdKeyboardArrowRight color="#666666" size={20} />
-            </div>
-          </div>
 
-          {/* Profile Setting */}
-          <Link href="/profile/settings">
-            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
+            {/* Profile Setting */}
+            <div 
+              onClick={() => {
+                window.location.href = "/profile/settings";
+              }}
+              className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4"
+            >
               <div className="flex items-center gap-3 text-[#666666]">
                 <FaRegUser size={16} />
                 <span>Profile settings</span>
               </div>
               <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
-          </Link>
 
-          {/* Bidding History */}
-          <Link href="/bidding-history">
-            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
+            {/* Bidding History */}
+            <div 
+              onClick={() => {
+                window.location.href = "/bidding-history";
+              }}
+              className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4"
+            >
               <div className="flex items-center gap-3 text-[#666666]">
                 <GoHistory size={16} />
                 <span>Bidding History</span>
               </div>
               <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
-          </Link>
 
-          {/* Order History */}
-          <Link href="/order-history">
-            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
+            {/* Order History */}
+            <div 
+              onClick={() => {
+                window.location.href = "/order-history";
+              }}
+              className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4"
+            >
               <div className="flex items-center gap-3 text-[#666666]">
                 <LuClock9 size={16} />
                 <span>Order History</span>
               </div>
               <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
-          </Link>
 
-          {/* Saved Items */}
-          <Link href="/saved-items">
-            <div className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4">
+            {/* Saved Items */}
+            <div 
+              onClick={() => {
+                window.location.href = "/saved-items";
+              }}
+              className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 mt-4"
+            >
               <div className="flex items-center gap-3 text-[#666666]">
                 <CiBookmark size={16} />
                 <span>Saved items</span>
               </div>
               <MdKeyboardArrowRight color="#666666" size={20} />
             </div>
-          </Link>
 
           {/* Language */}
           <div 
@@ -421,8 +443,8 @@ export default function Profile() {
                     // Already submitted documents, show pending message instead of resubmitting
                     setIsVerificationModalOpen(true);
                   } else {
-                    // Not yet submitted -> go to upload page
-                    router.push("/upload-cnic");
+                    // Not yet submitted -> go to upload page - use window.location for immediate navigation
+                    window.location.href = "/upload-cnic";
                   }
                 }}
                 className="cursor-pointer flex items-center justify-center gap-2 bg-white border border-[#EE8E32] text-[#EE8E32] font-medium px-6 py-3 rounded-lg hover:bg-orange-50 transition"

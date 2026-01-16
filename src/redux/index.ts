@@ -63,8 +63,14 @@ const persistConfig = {
   key: "root",
   storage: persistStorage,
   transforms: [encryptor],
-  timeout: 2000,
+  timeout: 2000, // Standard timeout
   whitelist: ["user"],
+  // Don't throw errors during rehydration to prevent blocking navigation
+  writeFailHandler: (err: Error) => {
+    if (typeof window !== "undefined") {
+      console.warn("Redux Persist write error (non-blocking):", err);
+    }
+  },
 };
 
 const rootReducer = combineReducers({
@@ -76,7 +82,6 @@ const rootReducer = combineReducers({
 });
 
 // Persisted reducer configuration
-// const persistedReducer = persistReducer(persistConfig, rootReducer);
 const persistedReducer = persistReducer<ReturnType<typeof rootReducer>>(
   persistConfig,
   rootReducer
@@ -104,6 +109,14 @@ const store = configureStore({
 });
 
 export const persistor = persistStore(store);
+
+// Ensure rehydration happens immediately on client side
+// This is critical for Next.js App Router to work properly
+if (typeof window !== "undefined") {
+  // Trigger rehydration immediately - this is async but doesn't block
+  // The persistedReducer will handle the REHYDRATE action automatically
+  persistor.persist();
+}
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

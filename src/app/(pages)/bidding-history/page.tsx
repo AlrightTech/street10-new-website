@@ -2,7 +2,6 @@
 import Image from "next/image";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { userApi } from "@/services/user.api";
 
 interface BidHistoryItem {
@@ -100,17 +99,19 @@ export default function BiddingHistoryPage() {
       <div className="relative z-10 w-full px-4 md:px-6 pb-8 pt-32">
         {/* Tabs */}
         <div className="flex gap-0 mb-6 bg-gray-100 rounded-full p-1 w-fit">
-          <Link href="/order-history">
-            <button
-              className={`px-6 py-2 font-medium transition rounded-full ${
-                activeTab === "order"
-                  ? "bg-[#EE8E32] text-white shadow-md"
-                  : "text-gray-600 bg-transparent"
-              }`}
-            >
-              Order History
-            </button>
-          </Link>
+          <button
+            onClick={() => {
+              // Use full-page navigation for immediate response
+              window.location.href = "/order-history";
+            }}
+            className={`px-6 py-2 font-medium transition rounded-full ${
+              activeTab === "order"
+                ? "bg-[#EE8E32] text-white shadow-md"
+                : "text-gray-600 bg-transparent"
+            }`}
+          >
+            Order History
+          </button>
           <button
             onClick={() => setActiveTab("bidding")}
             className={`px-6 py-2 font-medium transition rounded-full ${
@@ -166,11 +167,14 @@ export default function BiddingHistoryPage() {
 
                 {/* Increase Bid Button */}
                 <div className="flex-shrink-0">
-                  <Link href={`/bidding-history/increase-bid?id=${bid.auctionId}`}>
-                    <button className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition">
-                      Increase Bid
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => {
+                      window.location.href = `/bidding-history/increase-bid?id=${bid.auctionId}`;
+                    }}
+                    className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition"
+                  >
+                    Increase Bid
+                  </button>
                 </div>
               </div>
             ))

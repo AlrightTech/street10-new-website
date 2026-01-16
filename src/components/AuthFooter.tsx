@@ -51,7 +51,16 @@ export default function Footer() {
           </span>
           <div className="flex items-center gap-3">
             {socialMediaLinks.map((link) => (
-              <Link key={link.id} href={link.url} target="_blank" rel="noopener noreferrer">
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(link.url, '_blank', 'noopener,noreferrer');
+                }}
+              >
                 {link.icon ? (
                   <Image
                     src={link.icon}
@@ -66,7 +75,7 @@ export default function Footer() {
                 ) : (
                   <span className="text-[#101010] text-sm">{link.name}</span>
                 )}
-              </Link>
+              </a>
             ))}
           </div>
         </div>

@@ -20,8 +20,35 @@ export interface Auction {
       url: string;
       type: string;
     }>;
+    documents?: Array<{
+      id: string;
+      url: string;
+      title: string;
+      displayOrder: number;
+    }>;
+    filterValues?: Array<{
+      id: string;
+      filterId: string;
+      value: string;
+      filter: {
+        id: string;
+        key: string;
+        type: string;
+        iconUrl?: string;
+        i18n?: {
+          en?: { label: string };
+          ar?: { label: string };
+        };
+      };
+    }>;
   };
   currentBid?: {
+    id: string;
+    amountMinor: string;
+    userId: string;
+    createdAt: string;
+  };
+  winningBid?: {
     id: string;
     amountMinor: string;
     userId: string;

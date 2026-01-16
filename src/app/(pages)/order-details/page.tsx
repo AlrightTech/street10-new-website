@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { orderApi } from "@/services/order.api";
 import type { Order } from "@/services/order.api";
@@ -18,7 +18,7 @@ interface OrderDetailsDisplay {
   cardNumber?: string;
 }
 
-export default function OrderDetailsPage() {
+function OrderDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("id");
@@ -215,6 +215,18 @@ export default function OrderDetailsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderDetailsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    }>
+      <OrderDetailsPage />
+    </Suspense>
   );
 }
 

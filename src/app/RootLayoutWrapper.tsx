@@ -1,8 +1,9 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Favicon from "@/components/Favicon";
+import PromotionalPopup from "@/components/ui/PromotionalPopup";
 import { usePathname } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 
@@ -10,6 +11,7 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   const isAuthRoute = pathname?.startsWith("/login") || 
                       pathname?.startsWith("/create-acount") || 
                       pathname?.startsWith("/otp") || 
@@ -29,6 +31,11 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
     }
   }, [isInitialLoad]);
 
+  // Reset initial load flag when pathname changes (navigation occurred)
+  useEffect(() => {
+    setIsInitialLoad(false);
+  }, [pathname]);
+
   // Don't show Header/Footer for auth routes
   if (isAuthRoute) {
     return <>{children}</>;
@@ -42,9 +49,14 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
         <Header />
       </header>
 
-      <main className="flex-1 overflow-auto" key={pathname}>{children}</main>
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
 
       <Footer />
+      
+      {/* Promotional Popup */}
+      <PromotionalPopup />
     </div>
   );
 }

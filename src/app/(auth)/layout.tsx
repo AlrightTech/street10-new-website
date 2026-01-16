@@ -9,8 +9,10 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Hide AuthHeader on signup page since main Header is already shown
+  // Hide AuthHeader on signup page and build-vendor-account page since main Header is already shown
   const isSignupPage = pathname === "/signup";
+  const isBuildVendorAccountPage = pathname === "/build-vendor-account";
+  const shouldHideAuthHeader = isSignupPage || isBuildVendorAccountPage;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -21,7 +23,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <main>
-      {!isSignupPage && <AuthHeader />}
+      {!shouldHideAuthHeader && <AuthHeader />}
       {children}
 
       <Footer />

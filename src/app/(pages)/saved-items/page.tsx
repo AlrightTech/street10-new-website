@@ -151,7 +151,10 @@ export default function SavedItemsPage() {
             cars.map((car, index) => (
               <Link
                 key={car.id || index}
-                href={`/car-preview?id=${car.id}&type=${selectedFilter === "Cars" ? "auction" : "product"}`}
+                href={selectedFilter === "Cars" 
+                  ? `/car-preview?id=${car.id}&type=auction`
+                  : `/product-preview?id=${car.id}`
+                }
                 className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
               >
                 {/* Image Section */}

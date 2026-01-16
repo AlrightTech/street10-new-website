@@ -3,7 +3,7 @@ import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CategoriesSlider from "../general/CategoriesSlider";
-import { productApi } from "@/services/product.api";
+import { homeApi } from "@/services/home.api";
 import type { Product } from "@/services/product.api";
 
 const category = [
@@ -23,11 +23,16 @@ function Cars() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await productApi.getAll({
-          status: "active",
-          limit: 20,
-        });
-        setProducts(response.data || []);
+        // Use getFeaturedProducts to get products with featured ones prioritized at the top
+        const response = await homeApi.getFeaturedProducts(20);
+        
+        // Response structure: { success: true, data: Product[], pagination: {...} }
+        if (response && response.success && Array.isArray(response.data)) {
+          setProducts(response.data);
+        } else {
+          console.warn("Invalid response structure:", response);
+          setProducts([]);
+        }
       } catch (error) {
         console.error("Error fetching products:", error);
         setProducts([]);
@@ -42,6 +47,10 @@ function Cars() {
   // Transform product data to match the car format
   const cars = products.map((product) => {
     const price = parseFloat(product.priceMinor) / 100;
+    // Handle both nested (from home API) and flat (from products API) category structures
+    const categoryName = (product.categories?.[0] as any)?.category?.name 
+      || (product.categories?.[0] as any)?.name 
+      || "General";
     return {
       id: product.id,
       src: product.media?.[0]?.url || "/images/cars/car-1.jpg",
@@ -50,23 +59,18 @@ function Cars() {
       plate: product.title || "Product",
       provider: [
         "Provided by us",
-        product.categories?.[0]?.name || "General",
+        categoryName,
         "In Stock",
       ],
     };
   });
 
-  // Handle product click - always navigate to detail page
-  // Registration will be handled on the detail page
+  // Handle product click - navigate to e-commerce product detail page
   const handleCarClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Always navigate to detail page - registration will be handled there
-    router.push(`/car-preview?id=${id}&type=product`);
-    // Force scroll to top on navigation
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Navigate to dedicated product detail page for e-commerce products
+    window.location.href = `/product-preview?id=${id}`;
   };
 
   return (

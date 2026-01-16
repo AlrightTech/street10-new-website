@@ -46,8 +46,9 @@ export interface AuthResponse {
       status: string;
       lang?: string;
     };
-    token: string;
+    token?: string; // Optional - not present when OTP verification is required
     refreshToken?: string;
+    vendor?: any; // Optional - present for vendor registration
   };
   message?: string;
 }
@@ -82,6 +83,14 @@ export const authApi = {
     const response = await apiClient.post<AuthResponse>(
       "/auth/otp/verify",
       data
+    );
+    return response.data;
+  },
+
+  resendOTP: async (data: OTPVerifyRequest): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.post<{ success: boolean; message: string }>(
+      "/auth/otp/resend",
+      { email: data.email, phone: data.phone }
     );
     return response.data;
   },

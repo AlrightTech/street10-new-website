@@ -1,24 +1,11 @@
 "use client";
 import { Provider } from "react-redux";
-import store, { persistor } from "@/redux";
-import { useState, useEffect } from "react";
-import { PersistGate } from "redux-persist/integration/react";
+import store from "@/redux";
+
 export function StoreProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
-
-  return (
-    <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        {children}
-      </PersistGate>
-    </Provider>
-  );
+  // Completely removed PersistGate - it was blocking navigation
+  // The persistedReducer in redux/index.ts handles rehydration automatically
+  // The persistor.persist() call in redux/index.ts triggers rehydration without blocking
+  // This allows navigation to work immediately while rehydration happens in background
+  return <Provider store={store}>{children}</Provider>;
 }

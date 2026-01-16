@@ -73,4 +73,53 @@ export const homeApi = {
     });
     return response.data;
   },
+
+  getBanners: async (limit: number = 10) => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        title: string;
+        subtitle: string | null;
+        description: string | null;
+        thumbnailUrl: string | null;
+        mediaUrls: string[];
+        type: 'image' | 'video';
+        url: string | null;
+        buttonText: string | null;
+        buttonLink: string | null;
+        startDate: string;
+        endDate: string;
+        audience: 'user' | 'vendor';
+        priority: 'high' | 'medium' | 'low';
+      }>;
+    }>("/home/banners", {
+      params: { limit },
+      timeout: 60000,
+    });
+    return response.data.data || [];
+  },
+
+  getPopups: async (device?: 'desktop' | 'mobile') => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        imageUrl: string | null;
+        redirectType: 'product' | 'category' | 'external';
+        redirectTarget: string | null;
+        ctaText: string | null;
+        startDate: string;
+        endDate: string;
+        priority: 'high' | 'medium' | 'low';
+        deviceTarget: 'desktop' | 'mobile' | 'both';
+      }>;
+    }>("/home/popups", {
+      params: device ? { device } : {},
+      timeout: 60000,
+    });
+    return response.data.data || [];
+  },
 };

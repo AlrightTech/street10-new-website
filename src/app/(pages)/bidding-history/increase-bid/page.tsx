@@ -1,11 +1,11 @@
 "use client";
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { auctionApi } from "@/services/auction.api";
 
-export default function IncreaseBidPage() {
+function IncreaseBidPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const auctionId = searchParams.get("id");
@@ -190,6 +190,18 @@ export default function IncreaseBidPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function IncreaseBidPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    }>
+      <IncreaseBidPage />
+    </Suspense>
   );
 }
 

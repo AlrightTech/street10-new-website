@@ -1,12 +1,12 @@
 "use client";
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HiOutlineEye, HiOutlineClock, HiOutlineCheckCircle, HiOutlineXCircle } from "react-icons/hi";
 import { FiEdit, FiFileText } from "react-icons/fi";
 import { HiOutlineQuestionMarkCircle } from "react-icons/hi2";
 
-export default function RefundRequestDetailsPage() {
+function RefundRequestDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestId = searchParams.get("id");
@@ -392,5 +392,17 @@ export default function RefundRequestDetailsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RefundRequestDetailsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    }>
+      <RefundRequestDetailsPage />
+    </Suspense>
   );
 }

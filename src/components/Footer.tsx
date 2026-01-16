@@ -1,14 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MdLocalPhone } from "react-icons/md";
 import { IoMail } from "react-icons/io5";
 import { MdLocationOn } from "react-icons/md";
 import { settingsApi, type PublicSettings } from "@/services/settings.api";
 
 export default function Footer() {
+  const router = useRouter();
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,16 +57,30 @@ export default function Footer() {
           <ul className="space-y-2 text-sm md:ms-12">
             {footerOneFeatures.map((feature) => (
               <li key={feature.id}>
-                <Link href={feature.link || "#"}>{feature.title}</Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (feature.link && feature.link !== "#") {
+                      if (feature.link.startsWith('http://') || feature.link.startsWith('https://')) {
+                        window.location.href = feature.link; // External URL
+                      } else {
+                        router.push(feature.link); // Internal route
+                      }
+                    }
+                  }}
+                  className="text-left hover:text-[#EE8E32] transition cursor-pointer"
+                >
+                  {feature.title}
+                </button>
               </li>
             ))}
             {footerOneFeatures.length === 0 && (
               <>
                 <li>
-                  <Link href="#">Contact Us</Link>
+                  <a href="#">Contact Us</a>
                 </li>
                 <li>
-                  <Link href="#">Help & Center</Link>
+                  <a href="#">Help & Center</a>
                 </li>
               </>
             )}
@@ -78,19 +93,57 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             {footerTwoFeatures.map((feature) => (
               <li key={feature.id}>
-                <Link href={feature.link || "#"}>{feature.title}</Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (feature.link && feature.link !== "#") {
+                      if (feature.link.startsWith('http://') || feature.link.startsWith('https://')) {
+                        window.location.href = feature.link; // External URL
+                      } else {
+                        router.push(feature.link); // Internal route
+                      }
+                    }
+                  }}
+                  className="text-left hover:text-[#EE8E32] transition cursor-pointer"
+                >
+                  {feature.title}
+                </button>
               </li>
             ))}
             {footerTwoFeatures.length === 0 && (
               <>
                 <li>
-                  <Link href="/bidding">Bidding</Link>
+                  <a
+                    href="/bidding"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = "/bidding";
+                    }}
+                  >
+                    Bidding
+                  </a>
                 </li>
                 <li>
-                  <Link href="/e-commerce">E-commerce</Link>
+                  <a
+                    href="/e-commerce"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = "/e-commerce";
+                    }}
+                  >
+                    E-commerce
+                  </a>
                 </li>
                 <li>
-                  <Link href="/vendors">Vendors</Link>
+                  <a
+                    href="/vendors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = "/vendors";
+                    }}
+                  >
+                    Vendors
+                  </a>
                 </li>
               </>
             )}
@@ -121,7 +174,16 @@ export default function Footer() {
           </div>
           <div className="flex items-center gap-4 mt-4">
             {socialMediaLinks.map((link) => (
-              <Link key={link.id} href={link.url} target="_blank" rel="noopener noreferrer">
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(link.url, '_blank', 'noopener,noreferrer');
+                }}
+              >
                 {link.icon ? (
                   <Image
                     src={link.icon}
@@ -136,7 +198,7 @@ export default function Footer() {
                 ) : (
                   <span className="text-white text-sm">{link.name}</span>
                 )}
-              </Link>
+              </a>
             ))}
           </div>
         </div>
