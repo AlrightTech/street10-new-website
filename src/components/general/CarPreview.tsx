@@ -8,6 +8,8 @@ import AboutCar from "./AboutCar";
 import CarInfo from "./CarInfo";
 import Address from "./Address";
 import { Loader } from "../ui/loader";
+import type { Auction } from "@/services/auction.api";
+import type { Product } from "@/services/product.api";
 
 interface Car {
   id: number;
@@ -18,6 +20,28 @@ interface Car {
   timeLeft: string;
   images: string[];
   type?: "auction" | "product"; // auction = bidding product, product = e-commerce/vendor product
+  auction?: Auction; // Auction data
+  product?: Product; // Product data
+  documents?: Array<{
+    id: string;
+    url: string;
+    title: string;
+  }>;
+  filterValues?: Array<{
+    id: string;
+    filterId: string;
+    value: string;
+    filter: {
+      id: string;
+      key: string;
+      type: string;
+      iconUrl?: string;
+      i18n?: {
+        en?: { label: string };
+        ar?: { label: string };
+      };
+    };
+  }>;
 }
 
 type UserStatus = 'not_logged_in' | 'registered' | 'verification_pending' | 'verified';

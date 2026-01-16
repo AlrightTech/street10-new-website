@@ -5,10 +5,13 @@ import ProductPreview from "@/components/general/ProductPreview";
 import { productApi } from "@/services/product.api";
 import type { Product } from "@/services/product.api";
 
+// Type for product with images array (required by ProductPreview component)
+type ProductWithImages = Product & { images: string[] };
+
 function Page() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<ProductWithImages | null>(null);
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
 
@@ -38,10 +41,10 @@ function Page() {
 
         if (isMountedRef.current) {
           // Transform product to include images array for ProductPreview component
-          const productWithImages = {
+          const productWithImages: ProductWithImages = {
             ...fetchedProduct,
             images: fetchedProduct.media?.map((m) => m.url) || ["/images/cars/car-1.jpg"],
-          } as Product & { images: string[] };
+          };
           setProduct(productWithImages);
         }
       } catch (error) {
