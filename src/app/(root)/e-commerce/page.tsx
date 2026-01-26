@@ -1,7 +1,6 @@
 import Hero from "@/components/general/Hero";
 import Image from "next/image";
 import React from "react";
-import Auction from "@/components/general/Auction";
 import Cars from "@/components/commerce/Cars";
 
 const page = () => {
@@ -16,9 +15,8 @@ const page = () => {
           width={20}
           height={20}
         />{" "}
-        Auction categories
+        E-commerce categories
       </p>
-      <Auction />
       <Cars />
     </div>
   );

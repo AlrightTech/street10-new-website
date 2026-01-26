@@ -49,6 +49,7 @@ export interface Product {
 
 export interface ProductFilters {
   category_id?: string;
+  subcategory_id?: string;
   vendor_id?: string;
   status?: string;
   page?: number;

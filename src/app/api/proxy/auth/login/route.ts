@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://street10backend.up.railway.app/api/v1';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BASE_URL;
+if (!BACKEND_URL) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_BASE_URL. Set it in your website .env (e.g. https://api.st10.info/api/v1)."
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {

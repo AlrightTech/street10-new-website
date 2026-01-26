@@ -10,12 +10,29 @@ import type {
 
 export const homeApi = {
   getFeaturedAuctions: async (
-    limit: number = 10
+    limit: number = 10,
+    filters?: {
+      categoryId?: string;
+      subcategoryId?: string;
+      filterValues?: Array<{ filterId: string; value: string }>;
+    }
   ): Promise<AuctionPaginatedResponse<Auction>> => {
+    const params: any = { limit };
+    if (filters?.categoryId) params.category_id = filters.categoryId;
+    if (filters?.subcategoryId) params.subcategory_id = filters.subcategoryId;
+    if (filters?.filterValues && filters.filterValues.length > 0) {
+      // Convert filter values to JSON string
+      const filterObj: Record<string, string> = {};
+      filters.filterValues.forEach(fv => {
+        filterObj[fv.filterId] = fv.value;
+      });
+      params.filters = JSON.stringify(filterObj);
+    }
+    
     const response = await apiClient.get<AuctionPaginatedResponse<Auction>>(
       "/home/featured-auctions",
       {
-        params: { limit },
+        params,
         timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );
@@ -23,12 +40,28 @@ export const homeApi = {
   },
 
   getFeaturedProducts: async (
-    limit: number = 10
+    limit: number = 10,
+    filters?: {
+      categoryId?: string;
+      subcategoryId?: string;
+      filterValues?: Array<{ filterId: string; value: string }>;
+    }
   ): Promise<ProductPaginatedResponse<Product>> => {
+    const params: any = { limit };
+    if (filters?.categoryId) params.category_id = filters.categoryId;
+    if (filters?.subcategoryId) params.subcategory_id = filters.subcategoryId;
+    if (filters?.filterValues && filters.filterValues.length > 0) {
+      const filterObj: Record<string, string> = {};
+      filters.filterValues.forEach(fv => {
+        filterObj[fv.filterId] = fv.value;
+      });
+      params.filters = JSON.stringify(filterObj);
+    }
+    
     const response = await apiClient.get<ProductPaginatedResponse<Product>>(
       "/home/featured-products",
       {
-        params: { limit },
+        params,
         timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );
@@ -36,12 +69,28 @@ export const homeApi = {
   },
 
   getVendorOfferings: async (
-    limit: number = 10
+    limit: number = 10,
+    filters?: {
+      categoryId?: string;
+      subcategoryId?: string;
+      filterValues?: Array<{ filterId: string; value: string }>;
+    }
   ): Promise<ProductPaginatedResponse<Product>> => {
+    const params: any = { limit };
+    if (filters?.categoryId) params.category_id = filters.categoryId;
+    if (filters?.subcategoryId) params.subcategory_id = filters.subcategoryId;
+    if (filters?.filterValues && filters.filterValues.length > 0) {
+      const filterObj: Record<string, string> = {};
+      filters.filterValues.forEach(fv => {
+        filterObj[fv.filterId] = fv.value;
+      });
+      params.filters = JSON.stringify(filterObj);
+    }
+    
     const response = await apiClient.get<ProductPaginatedResponse<Product>>(
       "/home/vendor-products",
       {
-        params: { limit },
+        params,
         timeout: 60000, // 60 seconds timeout for home endpoints
       }
     );

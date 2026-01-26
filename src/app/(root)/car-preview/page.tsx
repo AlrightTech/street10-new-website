@@ -119,7 +119,7 @@ function Page() {
               timeLeft: timeLeft,
               images: auction.product?.media?.map((m) => m.url) || ["/images/cars/car-1.jpg"],
               type: "auction",
-              auction: auction,
+              auction: auction, // This includes depositAmount from the API
               documents: auction.product?.documents || [],
               filterValues: auction.product?.filterValues || [],
             });

@@ -13,20 +13,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import CategoriesSlider from "../general/CategoriesSlider";
 import { homeApi } from "@/services/home.api";
+import { categoryApi } from "@/services/category.api";
 import type { Auction } from "@/services/auction.api";
-
-const category = [
-  { title: "", icon: "/icons/categories.svg" },
-
-  { title: "Auctions", icon: "/icons/auction.svg" },
-  { title: "Cars", icon: "/icons/car.svg" },
-  { title: "Art", icon: "/icons/art.svg" },
-  { title: "Numbers", icon: "/icons/file.svg" },
-  { title: "Car Service", icon: "/icons/carService.svg" },
-  { title: "Spare Parts", icon: "/icons/spareParts.svg" },
-];
+import type { Category } from "@/services/category.api";
 
 // Client-side only countdown timer to prevent hydration mismatch
 const CountdownTimer = ({ targetDate, isScheduled = false }: { targetDate: Date; isScheduled?: boolean }) => {
@@ -64,17 +54,44 @@ const CountdownTimer = ({ targetDate, isScheduled = false }: { targetDate: Date;
 };
 
 function CarSlider() {
-  const router = useRouter();
   const [prevEl, setPrevEl] = useState<HTMLDivElement | null>(null);
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  // Fetch categories that have bidding products
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoryApi.getWithProducts('bidding');
+        if (response.success && response.data.categories) {
+          setCategories(response.data.categories);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Note: Subcategories are not shown on homepage sections
 
   useEffect(() => {
     const fetchAuctions = async () => {
       try {
         setLoading(true);
-        const response = await homeApi.getFeaturedAuctions(10);
+        const filters: {
+          categoryId?: string;
+        } = {};
+        
+        // On homepage, only filter by main category (no subcategories)
+        if (selectedCategoryId) {
+          filters.categoryId = selectedCategoryId;
+        }
+        
+        const response = await homeApi.getFeaturedAuctions(10, filters);
         
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
@@ -118,13 +135,13 @@ function CarSlider() {
     };
 
     fetchAuctions();
-  }, []);
+  }, [selectedCategoryId]);
 
   const handleCarClick = (e: React.MouseEvent, carId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Navigate using Next.js router
-    router.push(`/car-preview?id=${carId}&type=auction`);
+    // Use window.location.href for faster navigation to detail page
+    window.location.href = `/car-preview?id=${carId}&type=auction`;
   };
 
   // Transform auction data to match the car format
@@ -151,10 +168,60 @@ function CarSlider() {
     };
   });
 
+  // Build category items for CategoriesSlider - only if we have categories
+  const categoryItems = categories.length > 0
+    ? [
+        { title: "All", icon: "/icons/categories.svg", id: null as string | null },
+        ...categories.map(cat => ({
+          title: cat.name,
+          icon: cat.icon || "/icons/categories.svg",
+          id: cat.id as string | null,
+        })),
+      ]
+    : [];
+
+  const handleCategoryClick = (categoryId: string | null) => {
+    setSelectedCategoryId(categoryId);
+  };
+
   return (
     <>
       <section className="pt-5 pb-20 px-4 md:px-30 relative">
-        <CategoriesSlider category={category} />
+        {/* Category Tabs - Small, centered, with icons (no subcategories on homepage) */}
+        {categories.length > 0 && (
+          <div className="mb-6 flex justify-center">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <button
+                onClick={() => handleCategoryClick(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
+                  !selectedCategoryId
+                    ? 'bg-[#EE8E32] text-white'
+                    : 'bg-white text-[#4B4B4B] hover:bg-gray-100 shadow-[0px_1px_4px_0px_#0000001A]'
+                }`}
+              >
+                <Image src="/icons/categories.svg" alt="All" width={14} height={14} />
+                <span>All</span>
+              </button>
+              {categories.map(cat => {
+                const iconUrl = (cat.langData as any)?.en?.iconUrl || cat.icon || "/icons/categories.svg";
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryClick(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
+                      selectedCategoryId === cat.id
+                        ? 'bg-[#EE8E32] text-white'
+                        : 'bg-white text-[#4B4B4B] hover:bg-gray-100 shadow-[0px_1px_4px_0px_#0000001A]'
+                    }`}
+                  >
+                    <Image src={iconUrl} alt={cat.name} width={14} height={14} />
+                    <span>{cat.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <Swiper
           modules={[Navigation]}
           slidesPerView={1}
@@ -295,7 +362,10 @@ function CarSlider() {
 
       <div className="flex justify-center my-10">
         <button
-          onClick={() => router.push("/bidding")}
+          onClick={() => {
+            // Use window.location.href for faster navigation
+            window.location.href = "/bidding";
+          }}
           className="bg-[#EE8E32] cursor-pointer transition px-8 py-3 rounded-lg text-white font-semibold flex items-center gap-2 hover:bg-[#d67a1f]"
         >
           Explore more <FaArrowDown className="animate-bounce" />

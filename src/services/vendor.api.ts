@@ -36,8 +36,9 @@ export const vendorApi = {
   getAll: async (
     filters?: VendorFilters
   ): Promise<PaginatedResponse<Vendor>> => {
+    // Use public endpoint that doesn't require authentication
     const response = await apiClient.get<PaginatedResponse<Vendor>>(
-      "/vendors",
+      "/public/vendors",
       {
         params: filters,
       }
@@ -48,7 +49,8 @@ export const vendorApi = {
   getById: async (
     id: string
   ): Promise<{ success: boolean; data: { vendor: Vendor } }> => {
-    const response = await apiClient.get(`/vendors/${id}`);
+    // Use public endpoint that doesn't require authentication
+    const response = await apiClient.get(`/public/vendors/${id}`);
     return response.data;
   },
 };

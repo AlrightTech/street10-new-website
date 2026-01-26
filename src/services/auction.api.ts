@@ -74,6 +74,9 @@ export interface Bid {
 export interface AuctionFilters {
   state?: string;
   type?: string;
+  category_id?: string;
+  subcategory_id?: string;
+  filters?: string; // JSON string of filter values: {"filterId1":"value1","filterId2":"value2"}
   page?: number;
   limit?: number;
 }

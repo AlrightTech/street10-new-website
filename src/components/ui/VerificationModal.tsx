@@ -30,8 +30,6 @@ export default function VerificationModal({
   context = "bidding",
   state = "need_verification",
 }: VerificationModalProps) {
-  const router = useRouter();
-
   if (!isOpen) return null;
 
   // Decide title, description and buttons based on context + state
@@ -53,7 +51,8 @@ export default function VerificationModal({
     primaryLabel = "Register";
     primaryAction = () => {
       onClose();
-      router.push("/signup");
+      // Use window.location.href for faster navigation to signup page
+      window.location.href = "/signup";
     };
   } else if (state === "pending") {
     // KYC already submitted
@@ -68,7 +67,8 @@ export default function VerificationModal({
     primaryLabel = "Get Verified";
     primaryAction = () => {
       onClose();
-      router.push("/upload-cnic");
+      // Use window.location.href for faster navigation
+      window.location.href = "/upload-cnic";
     };
   }
 

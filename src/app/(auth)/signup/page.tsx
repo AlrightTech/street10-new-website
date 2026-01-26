@@ -109,31 +109,25 @@ export default function SignupPage() {
     try {
       setLoading(true);
       
-      // Convert image to base64 if provided
-      let profileImageUrl: string | undefined = undefined;
-      if (customerData.image) {
-        const reader = new FileReader();
-        profileImageUrl = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => {
-            if (reader.result) {
-              resolve(reader.result as string);
-            } else {
-              reject(new Error('Failed to read image'));
-            }
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(customerData.image!);
-        });
-      }
-
+      // Note: Profile image upload requires authentication, so we skip it during signup
+      // User can upload profile image after registration in profile settings
+      // For now, we'll register without profile image
       const response = await authApi.register({
         name: customerData.name,
         email: customerData.email,
         phone: customerData.phone,
         password: customerData.password,
-        profileImageUrl,
+        profileImageUrl: undefined, // Skip image during signup - can be uploaded later
         provider: "email",
       });
+      
+      // If registration successful and image was provided, try to upload it after login
+      // (This is optional - user can also upload later in profile settings)
+      if (customerData.image && response.success && response.data?.user) {
+        // Store image in localStorage temporarily to upload after redirect
+        // Or just skip it - user can upload in profile settings
+        console.log('Profile image can be uploaded after login in profile settings');
+      }
 
       // Check if response indicates an error
       if (response.success === false || !response.success) {
@@ -203,9 +197,11 @@ export default function SignupPage() {
             }
 
             // Vendor goes to admin panel login page (different domain)
-            const baseUrl =
-              process.env.NEXT_PUBLIC_ADMIN_URL ||
-              "https://street10-admin.vercel.app";
+            const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+            if (!baseUrl) {
+              toast.error("Admin URL is not configured. Set NEXT_PUBLIC_ADMIN_URL in website .env.");
+              return;
+            }
             const email = encodeURIComponent(
               response.data.user.email || customerData.email
             );

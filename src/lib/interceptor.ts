@@ -3,19 +3,15 @@ import { toast } from "react-hot-toast";
 import store from "@/redux";
 import { resetUser } from "@/redux/authSlice";
 
-// Get backend URL from environment variable
-// Default to production backend - set NEXT_PUBLIC_BASE_URL in .env.local to override
-const getBaseURL = () => {
-  // Priority: Use environment variable if set
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL;
-  }
-  
-  // Default: Always use production backend 
-  return "https://street10backend.up.railway.app/api/v1";
-};
+// Backend URL MUST come from environment.
+// Do not hardcode defaults here (local/prod) — configure in `.env`.
+const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
 
-const baseURL = getBaseURL();
+if (!baseURL) {
+  throw new Error(
+    "Missing NEXT_PUBLIC_BASE_URL. Set it in your website .env (e.g. https://api.st10.info/api/v1)."
+  );
+}
 
 // Log base URL in development to verify it's loaded correctly
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -102,10 +98,10 @@ apiClient.interceptors.response.use(
       
       // Handle 401 - Token expired or invalid
       if (status === 401) {
-        // Check if we're on a public page (login, signup, etc.) - don't logout
+        // Check if we're on a public page (login, signup, vendors, etc.) - don't logout
         if (typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
-          const publicPaths = ['/login', '/signup', '/build-vendor-account', '/otp2'];
+          const publicPaths = ['/login', '/signup', '/build-vendor-account', '/otp2', '/vendors', '/vendor', '/bidding', '/e-commerce', '/'];
           
           if (publicPaths.some(path => currentPath.startsWith(path))) {
             // On public page, just reject the error - don't logout
@@ -187,7 +183,7 @@ apiClient.interceptors.response.use(
           } else {
             // No refresh token - logout user (only if not on public page)
             const currentPath = window.location.pathname;
-            const publicPaths = ['/login', '/signup', '/build-vendor-account'];
+            const publicPaths = ['/login', '/signup', '/build-vendor-account', '/vendors', '/vendor', '/bidding', '/e-commerce', '/'];
             
             if (!publicPaths.some(path => currentPath.startsWith(path))) {
               window.location.href = "/login";

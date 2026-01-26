@@ -411,9 +411,12 @@ const Header = () => {
                   setIsLoggedIn(false);
                   setUserRole(null);
 
-                  const baseUrl =
-                    process.env.NEXT_PUBLIC_ADMIN_URL ||
-                    "https://street10-admin.vercel.app";
+                  const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+                  if (!baseUrl) {
+                    toast.error("Admin URL is not configured. Set NEXT_PUBLIC_ADMIN_URL in website .env.");
+                    window.location.href = "/login";
+                    return;
+                  }
                   window.location.href = `${baseUrl}/settings/profile`;
                 } else {
                   // Normal customers go to customer profile page

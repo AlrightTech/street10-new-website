@@ -194,7 +194,11 @@ function AuthPage() {
              }
 
              // Vendor goes to admin panel login page (different domain)
-             const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+             const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+             if (!baseUrl) {
+               toast.error("Admin URL is not configured. Set NEXT_PUBLIC_ADMIN_URL in website .env.");
+               return;
+             }
              const email = encodeURIComponent(response.data.user.email || "");
              window.location.href = `${baseUrl}/login?email=${email}`;
         } else {

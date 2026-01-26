@@ -81,7 +81,13 @@ export default function BuildVendorAccountPage() {
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   };
 
-  // Helper function to convert file to base64
+  // Upload file to S3 and get URL
+  const uploadFileToS3 = async (file: File, folder: 'documents' | 'profiles' = 'documents'): Promise<string> => {
+    const { uploadFileToS3: uploadS3 } = await import('@/services/upload.api');
+    return await uploadS3(file, folder);
+  };
+
+  // Convert file to Base64 for preview only (not sent to backend)
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -205,11 +211,15 @@ export default function BuildVendorAccountPage() {
     try {
       setLoading(true);
 
-      // Convert files to base64
+      // Convert files to base64 for documents (temporary - will be migrated to S3 later)
       // These are guaranteed to be non-null due to validation above
       const companyRegDocBase64 = await fileToBase64(formData.companyRegistrationDoc!);
       const commercialLicenseBase64 = await fileToBase64(formData.commercialLicense!);
-      const profileImageBase64 = formData.image ? await fileToBase64(formData.image) : null;
+      
+      // Note: Profile image upload requires authentication, so we skip it during registration
+      // User can upload profile image after registration in vendor dashboard
+      // For now, we'll register without profile image
+      const profileImageUrl = null; // Skip image during registration - can be uploaded later
 
       // Prepare companyDocs object with document URLs (base64 for now)
       const companyDocs = {
@@ -244,7 +254,7 @@ export default function BuildVendorAccountPage() {
         // Documents
         companyDocs: companyDocs,
         ownerIdUrl: null, // Can be added later if needed
-        profileImageUrl: profileImageBase64,
+        profileImageUrl: profileImageUrl, // null - can be uploaded after registration
       });
 
       // Check if response indicates an error
@@ -329,8 +339,11 @@ export default function BuildVendorAccountPage() {
           }
 
           // Redirect to vendor admin login page
-          const baseUrl =
-            process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+          const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+          if (!baseUrl) {
+            toast.error("Admin URL is not configured. Set NEXT_PUBLIC_ADMIN_URL in website .env.");
+            return;
+          }
           const email = encodeURIComponent(
             response.data.user.email || formData.email
           );

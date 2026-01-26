@@ -13,20 +13,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import CategoriesSlider from "../general/CategoriesSlider";
 import { homeApi } from "@/services/home.api";
+import { categoryApi } from "@/services/category.api";
 import type { Product } from "@/services/product.api";
-
-const category = [
-  { title: "", icon: "/icons/categories.svg" },
-
-  { title: "Auctions", icon: "/icons/auction.svg" },
-  { title: "Cars", icon: "/icons/car.svg" },
-  { title: "Art", icon: "/icons/art.svg" },
-  { title: "Numbers", icon: "/icons/file.svg" },
-  { title: "Car Service", icon: "/icons/carService.svg" },
-  { title: "Spare Parts", icon: "/icons/spareParts.svg" },
-];
+import type { Category } from "@/services/category.api";
 
 interface SimpleCarSliderProps {
   type?: "products" | "vendor";
@@ -38,15 +28,44 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
   const [nextEl, setNextEl] = useState<HTMLDivElement | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  // Fetch categories that have products
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const productType = type === "vendor" ? "vendor" : "ecommerce";
+        const response = await categoryApi.getWithProducts(productType);
+        if (response.success && response.data.categories) {
+          setCategories(response.data.categories);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, [type]);
+
+  // Note: Subcategories are not shown on homepage sections
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
+        const filters: {
+          categoryId?: string;
+        } = {};
+        
+        // On homepage, only filter by main category (no subcategories)
+        if (selectedCategoryId) {
+          filters.categoryId = selectedCategoryId;
+        }
+        
         const response =
           type === "vendor"
-            ? await homeApi.getVendorOfferings(10)
-            : await homeApi.getFeaturedProducts(10);
+            ? await homeApi.getVendorOfferings(10, filters)
+            : await homeApi.getFeaturedProducts(10, filters);
         
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
@@ -85,7 +104,7 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
     };
 
     fetchProducts();
-  }, [type]);
+  }, [type, selectedCategoryId]);
 
   // Handle product click - navigate to e-commerce product detail page
   const handleProductClick = (e: React.MouseEvent, productId: string) => {
@@ -116,10 +135,48 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
     };
   });
 
+  const handleCategoryClick = (categoryId: string | null) => {
+    setSelectedCategoryId(categoryId);
+  };
+
   return (
     <>
       <section className="pt-5 pb-20 px-4 md:px-30 relative">
-        <CategoriesSlider category={category} />
+        {/* Category Tabs - Small, centered, with icons (no subcategories on homepage) */}
+        {categories.length > 0 && (
+          <div className="mb-6 flex justify-center">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <button
+                onClick={() => handleCategoryClick(null)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
+                  !selectedCategoryId
+                    ? 'bg-[#EE8E32] text-white'
+                    : 'bg-white text-[#4B4B4B] hover:bg-gray-100 shadow-[0px_1px_4px_0px_#0000001A]'
+                }`}
+              >
+                <Image src="/icons/categories.svg" alt="All" width={14} height={14} />
+                <span>All</span>
+              </button>
+              {categories.map(cat => {
+                const iconUrl = (cat.langData as any)?.en?.iconUrl || cat.icon || "/icons/categories.svg";
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryClick(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 ${
+                      selectedCategoryId === cat.id
+                        ? 'bg-[#EE8E32] text-white'
+                        : 'bg-white text-[#4B4B4B] hover:bg-gray-100 shadow-[0px_1px_4px_0px_#0000001A]'
+                    }`}
+                  >
+                    <Image src={iconUrl} alt={cat.name} width={14} height={14} />
+                    <span>{cat.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <Swiper
           modules={[Navigation]}

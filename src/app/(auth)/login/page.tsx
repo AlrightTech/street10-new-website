@@ -50,7 +50,11 @@ export default function LoginPage() {
         // Redirect based on role
         if (response.data.user.role === "vendor") {
           // Vendor goes to admin panel (different domain)
-          const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "https://street10-admin.vercel.app";
+          const baseUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+          if (!baseUrl) {
+            toast.error("Admin URL is not configured. Set NEXT_PUBLIC_ADMIN_URL in website .env.");
+            return;
+          }
           window.location.href = `${baseUrl}/dashboard`;
         } else {
           // Customer stays on same domain - use window.location for immediate navigation

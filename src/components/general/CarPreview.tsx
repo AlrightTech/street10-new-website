@@ -47,7 +47,6 @@ interface Car {
 type UserStatus = 'not_logged_in' | 'registered' | 'verification_pending' | 'verified';
 
 const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
-  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState(car.images[0]);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 1=verify/register, 2=deposit, 3=amount
   const [bidStep, setBidStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
@@ -117,7 +116,8 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
           if (user.customerType !== 'verified') {
             // Show verification required message
             alert("Please verify your account first to place bids. You will be redirected to the verification page.");
-            router.push("/upload-cnic");
+            // Use window.location.href for faster navigation
+            window.location.href = "/upload-cnic";
             return;
           }
         } catch (error) {
@@ -125,7 +125,8 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
         }
       } else {
         alert("Please login to place bids");
-        router.push("/login");
+        // Use window.location.href for faster navigation
+        window.location.href = "/login";
         return;
       }
     }
@@ -151,13 +152,13 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
   };
 
   const handleRegister = () => {
-    // Navigate to registration page
-    router.push('/signup');
+    // Use window.location.href for faster navigation to signup page
+    window.location.href = '/signup';
   };
 
   const handleVerify = async () => {
-    // Navigate to verification page
-    router.push('/upload-cnic');
+    // Use window.location.href for faster navigation to verification page
+    window.location.href = '/upload-cnic';
   };
 
   const handlePayDeposit = async () => {
@@ -323,7 +324,13 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
                       className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading ? <Loader size="sm" color="#ffffff" /> : null}
-                      {loading ? "Processing..." : "Pay Deposit (200 QAR)"}
+                      {loading ? "Processing..." : (() => {
+                        // Get deposit amount from auction (stored in minor units as string)
+                        const depositAmount = car.auction?.depositAmount 
+                          ? (parseFloat(car.auction.depositAmount) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                          : '200';
+                        return `Pay Deposit (${depositAmount} QAR)`;
+                      })()}
                     </button>
                   </div>
                 )}
