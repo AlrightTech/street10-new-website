@@ -142,4 +142,61 @@ export const auctionApi = {
     const response = await apiClient.post(`/auctions/${auctionId}/bid`, data);
     return response.data;
   },
+
+  getSimilarProducts: async (
+    auctionId: string,
+    limit: number = 3
+  ): Promise<{ success: boolean; data: { products: any[] } }> => {
+    const response = await apiClient.get(`/auctions/${auctionId}/similar-products`, {
+      params: { limit },
+    });
+    return response.data;
+  },
+
+  payDeposit: async (
+    auctionId: string
+  ): Promise<{ 
+    success: boolean; 
+    data: { 
+      clientSecret?: string;
+      paymentIntentId?: string;
+      amountMinor?: string;
+      alreadyPaid?: boolean;
+    };
+    message?: string;
+  }> => {
+    const response = await apiClient.post(`/auctions/${auctionId}/pay-deposit`);
+    return response.data;
+  },
+
+  confirmDepositPayment: async (
+    auctionId: string,
+    paymentIntentId: string
+  ): Promise<{ 
+    success: boolean; 
+    data: { 
+      message?: string;
+      alreadyPaid?: boolean;
+    };
+    message?: string;
+  }> => {
+    const response = await apiClient.post(`/auctions/${auctionId}/confirm-deposit`, {
+      paymentIntentId,
+    });
+    return response.data;
+  },
+
+  checkDepositStatus: async (
+    auctionId: string
+  ): Promise<{ 
+    success: boolean; 
+    data: { 
+      alreadyPaid?: boolean;
+      depositAmount?: string | null;
+    };
+    message?: string;
+  }> => {
+    const response = await apiClient.get(`/auctions/${auctionId}/check-deposit`);
+    return response.data;
+  },
 };

@@ -164,6 +164,23 @@ export default function SignupPage() {
           response.data.user.status === "pending_phone";
         
         if (needsOTPVerification) {
+          // OTP verification required - store profile image in sessionStorage for upload after verification
+          if (customerData.image) {
+            try {
+              // Convert file to base64 for storage (temporary, will be uploaded to S3 after OTP verification)
+              const reader = new FileReader();
+              reader.onload = () => {
+                const base64Data = reader.result as string;
+                sessionStorage.setItem('pendingProfileImage', base64Data);
+                sessionStorage.setItem('pendingProfileImageName', customerData.image!.name);
+                sessionStorage.setItem('pendingProfileImageType', customerData.image!.type);
+              };
+              reader.readAsDataURL(customerData.image);
+            } catch (error) {
+              console.error('Failed to store profile image for later upload:', error);
+            }
+          }
+          
           // OTP verification required - redirect to OTP page
           toast.success("Account created! Please verify your email.");
           const email = encodeURIComponent(
@@ -171,8 +188,7 @@ export default function SignupPage() {
           );
           window.location.href = `/otp2?email=${email}`;
         } else {
-          // Account already verified - store tokens and redirect
-          toast.success("Account created successfully!");
+          // Account already verified - store tokens and upload profile image if provided
           if (response.data.token) {
             localStorage.setItem("token", response.data.token);
             if (response.data.refreshToken) {
@@ -180,11 +196,36 @@ export default function SignupPage() {
             }
             localStorage.setItem("user", JSON.stringify(response.data.user));
             
+            // Upload profile image if provided
+            if (customerData.image) {
+              try {
+                const { uploadFileToS3 } = await import('@/services/upload.api');
+                const profileImageUrl = await uploadFileToS3(customerData.image, 'profiles');
+                
+                // Update user profile with the uploaded image URL
+                const { userApi } = await import('@/services/user.api');
+                await userApi.updateProfile({ profileImageUrl } as any);
+                
+                // Refresh user data
+                const updatedUser = await userApi.getCurrentUser();
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+                
+                toast.success("Profile image uploaded successfully!");
+              } catch (imageError: any) {
+                console.error("Failed to upload profile image:", imageError);
+                // Don't block registration if image upload fails
+                toast.error("Profile image upload failed. You can upload it later in profile settings.");
+              }
+            }
+            
             // Dispatch custom event to notify Header component of auth state change
             if (typeof window !== "undefined") {
               window.dispatchEvent(new Event("authStateChanged"));
             }
           }
+          
+          toast.success("Account created successfully!");
+          
           // Redirect based on role
           if (response.data.user.role === "vendor") {
             // Vendor should manage account in admin panel only.

@@ -1,24 +1,125 @@
 "use client";
 import Image from "next/image";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { FaPlus, FaMinus, FaTrash } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MdKeyboardArrowDown } from "react-icons/md";
 import { IoLocationOutline } from "react-icons/io5";
 import { MdOutlineArrowDownward } from "react-icons/md";
-import Link from "next/link";
 import { Loader } from "../ui/loader";
+import { orderApi } from "@/services/order.api";
+import type { Order, ShippingAddress } from "@/services/order.api";
 
 const Address = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("orderId");
+  
   const [loading, setLoading] = useState(false);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [fetchingOrder, setFetchingOrder] = useState(true);
+  const [formData, setFormData] = useState<ShippingAddress>({
+    country: "",
+    city: "",
+    zone: "",
+    street: "",
+    building: "",
+    homeOffice: "",
+    phone: "",
+    instructions: "",
+  });
+
+  useEffect(() => {
+    const fetchOrder = async () => {
+      try {
+        setFetchingOrder(true);
+        
+        if (orderId) {
+          // Fetch specific order by ID
+          const response = await orderApi.getById(orderId);
+          if (response.success && response.data?.order) {
+            setOrder(response.data.order);
+            // Pre-fill form with existing address if available
+            if (response.data.order.shippingAddress) {
+              setFormData({
+                ...response.data.order.shippingAddress,
+                ...formData,
+              });
+            }
+          }
+        } else {
+          // No orderId provided - fetch user's pending orders (won auctions)
+          try {
+            const ordersResponse = await orderApi.getUserOrders({ status: 'created' });
+            // API returns data as array directly (PaginatedResponse format)
+            const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+            if (orders.length > 0) {
+              // Use the first pending order (most recent won auction)
+              const pendingOrder = orders[0];
+              setOrder(pendingOrder);
+              // Pre-fill form with existing address if available
+              if (pendingOrder.shippingAddress) {
+                setFormData({
+                  ...pendingOrder.shippingAddress,
+                  ...formData,
+                });
+              }
+            } else {
+              // No pending orders - show message
+              console.log('No pending orders found');
+            }
+          } catch (error) {
+            console.error('Error fetching pending orders:', error);
+            // Don't show alert - user might not have won any auctions yet
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching order:", error);
+        // Don't show alert if no order found (user might not have won any auctions)
+        if (orderId) {
+          alert("Failed to load order. Please try again.");
+        }
+      } finally {
+        setFetchingOrder(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId]);
 
   const handleSubmit = async () => {
+    const targetOrderId = orderId || order?.id;
+    if (!targetOrderId) {
+      alert("Order ID is missing. Please go back to cart.");
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.country || !formData.city || !formData.street) {
+      alert("Please fill in all required fields (Country, City, Street).");
+      return;
+    }
+
     setLoading(true);
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    // Navigation will happen via Link
+    try {
+      await orderApi.updateAddress(targetOrderId, formData);
+      
+      // Fetch order again to get updated remaining payment amount
+      const updatedOrderResponse = await orderApi.getById(targetOrderId);
+      const updatedOrder = updatedOrderResponse.data?.order;
+      
+      // Calculate remaining payment: final price - deposit
+      // Deposit is already held in onHoldMinor and will be applied to order
+      // User needs to pay the remaining amount
+      const remainingAmount = updatedOrder?.remainingPayment || updatedOrder?.totalMinor || order?.totalMinor || '0';
+      
+      // Redirect to payment page with orderId and remaining amount
+      router.push(`/payment?type=order&orderId=${targetOrderId}&amount=${remainingAmount}`);
+    } catch (error: any) {
+      console.error("Error updating address:", error);
+      alert(error?.response?.data?.message || "Failed to update address. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,7 +152,11 @@ const Address = () => {
             {/* Country */}
 
             <div className="relative w-full">
-              <select className="w-full px-4 py-3 pr-10 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31] appearance-none">
+              <select
+                value={formData.country || ""}
+                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                className="w-full px-4 py-3 pr-10 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31] appearance-none"
+              >
                 <option value="">Select Country</option>
                 <option value="pakistan">Pakistan</option>
                 <option value="uae">UAE</option>
@@ -65,7 +170,11 @@ const Address = () => {
 
             {/* City */}
             <div className="relative w-full">
-              <select className="w-full px-4 py-3 pr-10 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31] appearance-none">
+              <select
+                value={formData.city || ""}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="w-full px-4 py-3 pr-10 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31] appearance-none"
+              >
                 <option value="">Select City</option>
                 <option value="lahore">Lahore</option>
                 <option value="karachi">Karachi</option>
@@ -82,11 +191,15 @@ const Address = () => {
               <input
                 type="text"
                 placeholder="Zone Number"
+                value={formData.zone || ""}
+                onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
                 className="w-full px-4 py-3 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
               />
               <input
                 type="text"
                 placeholder="Street Number"
+                value={formData.street || ""}
+                onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                 className="w-full px-4 py-3 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
               />
             </div>
@@ -96,11 +209,15 @@ const Address = () => {
               <input
                 type="text"
                 placeholder="Building Number"
+                value={formData.building || ""}
+                onChange={(e) => setFormData({ ...formData, building: e.target.value })}
                 className="w-full px-4 py-3 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
               />
               <input
                 type="text"
                 placeholder="Home / Office Number"
+                value={formData.homeOffice || ""}
+                onChange={(e) => setFormData({ ...formData, homeOffice: e.target.value })}
                 className="w-full px-4 py-3 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
               />
             </div>
@@ -109,12 +226,16 @@ const Address = () => {
             <input
               type="text"
               placeholder="Phone Number"
+              value={formData.phone || ""}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full px-4 py-3 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
             />
 
             {/* Extra Instructions */}
             <textarea
               placeholder="Extra instructions (ex. special landmarks)"
+              value={formData.instructions || ""}
+              onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
               className="w-full px-4 py-2 bg-white rounded-md border focus:outline-none focus:ring-2 focus:ring-[#ee8e31]"
               rows={3}
             ></textarea>
@@ -129,11 +250,8 @@ const Address = () => {
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  await handleSubmit();
-                  router.push("/order-preview");
-                }}
-                disabled={loading}
+                onClick={handleSubmit}
+                disabled={loading || !order}
                 className="bg-[#EE8E32] flex gap-2 items-center justify-center text-white py-3 rounded-lg px-5 cursor-pointer font-semibold hover:bg-[#d67a1f] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                   {loading ? (
@@ -154,109 +272,72 @@ const Address = () => {
 
         {/* Right Section - Cart Details */}
         <div className="lg:col-span-4 bg-white rounded-xl shadow-md p-4">
-          <h3 className="text-xl font-semibold mb-4">Your Cart</h3>
+          <h3 className="text-xl font-semibold mb-4">Order Summary</h3>
 
-          {/* Cart Item */}
-          <div className="flex items-center gap-4  p-4 rounded-lg mb-4 bg-[#F3F5F6]">
-            <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Image
-                src={"/images/cars/car-1.jpg"}
-                alt="car"
-                width={100}
-                height={100}
-                className="object-cover h-20 w-20 rounded-lg"
-              />
+          {fetchingOrder ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader size="md" />
             </div>
-            <div className="flex-1">
-              <p className="font-semibold">Car GTR 503</p>
-              <div className="flex items-center gap-3 mt-2 bg-white px-4 py-3 rounded-lg w-30">
-                <FaMinus className="cursor-pointer text-[#EE8E32]" />
-                <span className="px-2 text-[#EE8E32] text-xl font-semibold">
-                  1
-                </span>
-                <FaPlus className="cursor-pointer text-[#EE8E32]" />
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-[#EE8E32]">QAR 1200</p>
-              <FaTrash className="text-[#EE8E32] cursor-pointer mt-2" />
-            </div>
-          </div>
-          <div className="flex items-center gap-4  p-4 rounded-lg mb-4 bg-[#F3F5F6]">
-            <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Image
-                src={"/images/cars/car-1.jpg"}
-                alt="car"
-                width={100}
-                height={100}
-                className="object-cover h-20 w-20 rounded-lg"
-              />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold">Car GTR 503</p>
-              <div className="flex items-center gap-3 mt-2 bg-white px-4 py-3 rounded-lg w-30">
-                <FaMinus className="cursor-pointer text-[#EE8E32]" />
-                <span className="px-2 text-[#EE8E32] text-xl font-semibold">
-                  1
-                </span>
-                <FaPlus className="cursor-pointer text-[#EE8E32]" />
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-[#EE8E32]">QAR 1200</p>
-              <FaTrash className="text-[#EE8E32] cursor-pointer mt-2" />
-            </div>
-          </div>
-          <div className="flex items-center gap-4  p-4 rounded-lg mb-4 bg-[#F3F5F6]">
-            <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Image
-                src={"/images/cars/car-1.jpg"}
-                alt="car"
-                width={100}
-                height={100}
-                className="object-cover h-20 w-20 rounded-lg"
-              />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold">Car GTR 503</p>
-              <div className="flex items-center gap-3 mt-2 bg-white px-4 py-3 rounded-lg w-30">
-                <FaMinus className="cursor-pointer text-[#EE8E32]" />
-                <span className="px-2 text-[#EE8E32] text-xl font-semibold">
-                  1
-                </span>
-                <FaPlus className="cursor-pointer text-[#EE8E32]" />
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-semibold text-[#EE8E32]">QAR 1200</p>
-              <FaTrash className="text-[#EE8E32] cursor-pointer mt-2" />
-            </div>
-          </div>
+          ) : order ? (
+            <>
+              {/* Order Item */}
+              {order.items?.map((item) => {
+                const product = item.product;
+                const imageUrl = product?.media?.[0]?.url || "/images/cars/car-1.jpg";
+                const price = parseFloat(item.priceMinor || '0') / 100;
 
-          {/* Summary */}
-          <div className="space-y-2 text-gray-700 bg-[#F3F5F6] p-4 rounded-lg">
-            <h2 className="text-lg font-semibold">Payment Summary</h2>
-            <div className="flex justify-between font-normal">
-              <span>Subtotal</span>
-              <span>QAR 1200</span>
-            </div>
-            <div className="flex justify-between font-normal">
-              <span>Delivery</span>
-              <span>QAR 50</span>
-            </div>
-            <div className="flex justify-between  font-semibold text-lg border-t pt-2">
-              <span>Total</span>
-              <span>QAR 1250</span>
-            </div>
-          </div>
+                return (
+                  <div key={item.id} className="flex items-center gap-4 p-4 rounded-lg mb-4 bg-[#F3F5F6]">
+                    <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Image
+                        src={imageUrl}
+                        alt={product?.title || "Product"}
+                        width={80}
+                        height={80}
+                        className="object-cover h-20 w-20 rounded-lg"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">{product?.title || "Product"}</p>
+                      <p className="text-sm text-gray-600 mt-1">Quantity: {item.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-[#EE8E32]">
+                        {price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
 
-          {/* Delivery Date */}
-          <div className="mt-4 bg-[#F3F5F6] p-4 rounded-lg">
-            <p className="text-lg font-semibold">Expected Delivery:</p>
-            <p className="font-normal">
-              Our team will contact you in the next 24 hours
-            </p>
-          </div>
+              {/* Summary */}
+              <div className="space-y-2 text-gray-700 bg-[#F3F5F6] p-4 rounded-lg">
+                <h2 className="text-lg font-semibold">Payment Summary</h2>
+                <div className="flex justify-between font-normal">
+                  <span>Subtotal</span>
+                  <span>{(parseFloat(order.totalMinor || '0') / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                  <span>Total</span>
+                  <span className="text-[#EE8E32]">
+                    {(parseFloat(order.totalMinor || '0') / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Delivery Date */}
+              <div className="mt-4 bg-[#F3F5F6] p-4 rounded-lg">
+                <p className="text-lg font-semibold">Expected Delivery:</p>
+                <p className="font-normal">
+                  Our team will contact you in the next 24 hours
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No order found</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

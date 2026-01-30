@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { CiCirclePlus } from "react-icons/ci";
 import { CiCircleMinus } from "react-icons/ci";
+import toast from "react-hot-toast";
 import AboutCar from "./AboutCar";
 import CarInfo from "./CarInfo";
 import Address from "./Address";
@@ -46,14 +47,67 @@ interface Car {
 
 type UserStatus = 'not_logged_in' | 'registered' | 'verification_pending' | 'verified';
 
-const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
-  const [selectedImage, setSelectedImage] = useState(car.images[0]);
+const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
+  // Use local state for car to allow real-time updates
+  const [car, setCar] = useState<Car>(initialCar);
+  const [selectedImage, setSelectedImage] = useState(initialCar.images[0]);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1); // 1=verify/register, 2=deposit, 3=amount
   const [bidStep, setBidStep] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
   const [loading, setLoading] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus>('not_logged_in');
+  const [bidCount, setBidCount] = useState<number>(0);
+  const [highestBidder, setHighestBidder] = useState<string>('');
+  const [latestBid, setLatestBid] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [auctionEnded, setAuctionEnded] = useState<boolean>(false);
+  const [endAtTime, setEndAtTime] = useState<string | null>(initialCar.type === 'auction' && initialCar.auction?.endAt ? initialCar.auction.endAt : null);
+  const [lastBidNotificationTime, setLastBidNotificationTime] = useState<number>(0); // Track last notification to prevent duplicates
+  const [winnerInfo, setWinnerInfo] = useState<{ name: string; userId: string } | null>(null); // Store winner information
   // 0=normal images, 1=red preview, 2=number plate preview, 3=back to normal after bid
+
+  // --- Bid increment & minimum bid calculation based on auction data ---
+  // Values from backend are in minor units (e.g. 550000 = 5,500.00 QAR)
+  const rawMinIncrementMinor =
+    car.type === 'auction' && car.auction?.minIncrement
+      ? parseFloat(car.auction.minIncrement)
+      : 0;
+
+  // Default increment to 100 QAR if not set
+  const minIncrementQAR =
+    rawMinIncrementMinor > 0 ? rawMinIncrementMinor / 100 : 100;
+
+  // Current winning amount in minor units - use state so it updates in real-time
+  const [currentAmountMinor, setCurrentAmountMinor] = useState<number>(
+    car.type === 'auction' && car.auction
+      ? (() => {
+          const a = car.auction;
+          const winning = (a as any).winningBid || a.currentBid;
+          if (winning && winning.amountMinor) {
+            return parseFloat(winning.amountMinor);
+          }
+          if (a.reservePrice) {
+            return parseFloat(a.reservePrice);
+          }
+          if ((a as any).startingPrice) {
+            return parseFloat((a as any).startingPrice);
+          }
+          return 0;
+        })()
+      : 0
+  );
+
+  // Minimum next bid in QAR (currentAmount + minIncrement)
+  const minBidQAR =
+    (currentAmountMinor + (rawMinIncrementMinor > 0 ? rawMinIncrementMinor : 0)) /
+    100;
+
+  // Quick bid options: start at minimum bid, then add increments
+  const quickBidBase =
+    minBidQAR && minBidQAR > 0 ? minBidQAR : minIncrementQAR;
+  const quickBidOptions = [0, 1, 2, 3].map(
+    (i) => Math.round(quickBidBase + i * minIncrementQAR)
+  );
 
   // Check user status on mount
   useEffect(() => {
@@ -106,7 +160,400 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
     }
   }, [car.type]);
 
+  // Check if deposit is already paid when component loads (for auctions)
+  useEffect(() => {
+    const checkDepositStatus = async () => {
+      if (car.type !== 'auction' || !car.auction?.id || userStatus !== 'verified') {
+        return;
+      }
+
+      // Add a small delay to ensure deposit is recorded after payment redirect
+      const delay = setTimeout(async () => {
+        try {
+          const { auctionApi } = await import('@/services/auction.api');
+          if (!car.auction?.id) return;
+          const response = await auctionApi.checkDepositStatus(car.auction.id);
+          
+          // If deposit is already paid, skip to bidding step
+          if (response.data?.alreadyPaid) {
+            setStep(3);
+            setBidStep(0); // Reset bid step to show bidding form
+          } else if (car.auction?.state === 'live') {
+            // Only show deposit step if auction is live
+            setStep(2);
+          }
+        } catch (error: any) {
+          // If error is about auction not live, show appropriate message
+          if (error?.response?.data?.message?.includes('not live')) {
+            // Auction not live - don't show deposit button
+            if (car.auction?.state !== 'live') {
+              setStep(1); // Show message that auction is not live
+            }
+          }
+          console.log('Deposit check:', error?.response?.data?.message || 'Not checked');
+        }
+      }, 500); // Small delay to ensure backend has processed deposit
+
+      return () => clearTimeout(delay);
+    };
+
+    checkDepositStatus();
+  }, [car.type, car.auction?.id, userStatus, car.auction?.state]);
+
+  // Update endAtTime when car.auction.endAt changes
+  useEffect(() => {
+    if (car.type === 'auction' && car.auction?.endAt) {
+      setEndAtTime(car.auction.endAt);
+    }
+  }, [car.type, car.auction?.endAt]);
+
+  // Real-time countdown timer
+  useEffect(() => {
+    if (car.type !== 'auction' || !endAtTime) return;
+
+      const updateCountdown = () => {
+      // Don't update if already ended
+      if (auctionEnded) {
+        setTimeLeft('00:00:00');
+        return;
+      }
+
+      const endDate = new Date(endAtTime);
+      const now = new Date();
+      const diff = endDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft('00:00:00');
+        setAuctionEnded(true);
+        // Check auction state - if ended, disable bidding
+        if (car.auction?.state === 'ended' || car.auction?.state === 'settled') {
+          setAuctionEnded(true);
+        }
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setTimeLeft(`${days}d : ${hours}h : ${minutes}m`);
+      } else {
+        setTimeLeft(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+      }
+      setAuctionEnded(false);
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Update every second
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [car.type, endAtTime, auctionEnded, car.auction?.state]);
+
+  // Sync car prop changes to local state
+  useEffect(() => {
+    setCar(initialCar);
+  }, [initialCar]);
+
+  // WebSocket connection for real-time bidding updates
+  useEffect(() => {
+    if (car.type !== 'auction' || !car.auction?.id) return;
+
+    let socket: any = null;
+    let isConnected = false;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const connectWebSocket = async () => {
+      try {
+        // Dynamically import socket.io-client
+        const { io } = await import('socket.io-client');
+        const baseURL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
+        const wsURL = baseURL.replace('/api/v1', '');
+
+        socket = io(wsURL, {
+          transports: ['websocket'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 5,
+        });
+
+        const joinAuctionRoom = () => {
+          if (socket && socket.connected && car.auction?.id) {
+            socket.emit('join_auction', car.auction.id);
+            console.log('✅ Joined auction room:', car.auction.id);
+          }
+        };
+
+        socket.on('connect', () => {
+          console.log('✅ WebSocket connected');
+          isConnected = true;
+          // Authenticate socket with user ID if available
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              const userId = String(user.id || user.userId || '');
+              if (userId) {
+                socket.emit('authenticate', userId);
+              }
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
+          // Join auction room on connect AND reconnect
+          joinAuctionRoom();
+        });
+
+        socket.on('reconnect', (attemptNumber: number) => {
+          console.log(`✅ WebSocket reconnected (attempt ${attemptNumber})`);
+          // Rejoin room on reconnect
+          joinAuctionRoom();
+        });
+
+
+        socket.on('new_bid', (data: any) => {
+          // Update UI with new bid information
+          if (data.bid) {
+            const bidAmount = parseFloat(data.bid.amountMinor) / 100;
+            setLatestBid(`${bidAmount.toLocaleString()} QAR`);
+            setHighestBidder(data.bid.bidderName || 'Anonymous');
+            if (data.bidCount) {
+              setBidCount(data.bidCount);
+            }
+            // Update endAt time if auto-extend happened
+            if (data.endAt) {
+              setEndAtTime(data.endAt);
+            }
+            // Update current amount for minimum bid calculation - THIS FIXES THE BID BUTTON UPDATES
+            const newAmountMinor = parseFloat(data.bid.amountMinor);
+            setCurrentAmountMinor(newAmountMinor);
+            // This will trigger recalculation of minBidQAR and quickBidOptions
+            
+            // Don't show toast for user's own bid - API call already shows it
+            // Only update UI state, no toast notification needed
+            // This prevents duplicate notifications
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              try {
+                const user = JSON.parse(userStr);
+                const userId = String(user.id || user.userId || '');
+                const bidUserId = String(data.bid.userId || '');
+                // If this is the current user's bid, skip toast (already shown by API call)
+                // Only show toast for other users' bids if needed (currently not showing any)
+                if (userId === bidUserId) {
+                  // User's own bid - toast already shown by API call, skip WebSocket toast
+                  // Just update the last notification time to prevent any duplicates
+                  setLastBidNotificationTime(Date.now());
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        });
+        
+        // Listen for auction status changes
+        socket.on('auction_status_changed', (data: any) => {
+          console.log('📢 Received auction_status_changed:', data);
+          if (data.auctionId === car.auction?.id && data.state) {
+            // Update car status in real-time - use single state update to ensure re-render
+            setCar((prevCar: any) => {
+              const updatedCar = {
+                ...prevCar,
+                auction: {
+                  ...prevCar.auction,
+                  state: data.state,
+                },
+                status: data.status || prevCar.status,
+              };
+              
+              // Update reservePriceMet if provided
+              if (data.reservePriceMet !== undefined) {
+                updatedCar.reservePriceMet = data.reservePriceMet;
+              }
+              
+              console.log('🔄 Updated car status:', updatedCar.status, 'state:', updatedCar.auction?.state, 'reservePriceMet:', data.reservePriceMet);
+              return updatedCar;
+            });
+            
+            // If auction ended, trigger the same logic as auction_ended event
+            if (data.state === 'ended' || data.state === 'settled') {
+              setAuctionEnded(true);
+              setTimeLeft('00:00:00');
+            }
+          }
+        });
+        
+        socket.on('auction_state', (data: any) => {
+          // Update bid count and current bid from initial state
+          if (data.currentBid) {
+            const bidAmount = parseFloat(data.currentBid) / 100;
+            setLatestBid(`${bidAmount.toLocaleString()} QAR`);
+          }
+          if (data.bidderName) {
+            setHighestBidder(data.bidderName);
+          }
+          if (data.bidCount !== undefined) {
+            setBidCount(data.bidCount);
+          }
+          // Update endAt time for countdown if provided
+          if (data.endAt) {
+            // Countdown timer will handle this
+          }
+          // Check if auction ended
+          if (data.state === 'ended' || data.state === 'settled') {
+            setAuctionEnded(true);
+            setTimeLeft('00:00:00');
+          }
+        });
+
+        socket.on('auction_ended', (data: any) => {
+          console.log('🏁 Received auction_ended event:', data);
+          
+          // Freeze countdown immediately
+          setAuctionEnded(true);
+          setTimeLeft('00:00:00');
+          
+          // Store winner information for display
+          if (data.winner && data.reservePriceMet) {
+            setWinnerInfo({
+              name: data.winner.name || data.winner.email?.split('@')[0] || 'Winner',
+              userId: data.winner.userId,
+            });
+          } else {
+            setWinnerInfo(null);
+          }
+          
+          // Update status to "Sold" if reserve price met, otherwise "Ended"
+          setCar((prevCar: any) => ({
+            ...prevCar,
+            status: data.reservePriceMet ? 'Sold' : 'Ended',
+            auction: {
+              ...prevCar.auction,
+              state: 'ended',
+            },
+          }));
+          
+          // Disable bidding by updating step (hide bid form)
+          setStep(1);
+          setBidStep(0);
+          
+          // Check if current user is winner
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              // Convert user.id to string for comparison (it might be number or string)
+              const userId = String(user.id || user.userId || '');
+              const winnerUserId = data.winner ? String(data.winner.userId || '') : '';
+              
+              console.log('👤 Current user ID:', userId, 'Winner ID:', winnerUserId);
+              
+              if (data.winner && userId === winnerUserId) {
+                // User won - show success and redirect to address/checkout page
+                console.log('🎉 User won! Redirecting to address page...');
+                setTimeout(() => {
+                  toast.success('🎉 Congratulations! You won the auction!', { duration: 3000 });
+                  setTimeout(() => {
+                    // Redirect to address page where user can fill address and see cart
+                    if (data.orderId) {
+                      window.location.href = `/address?orderId=${data.orderId}`;
+                    } else {
+                      // Fallback: try to get order from API
+                      window.location.href = '/address';
+                    }
+                  }, 2000);
+                }, 500);
+              } else if (data.winner) {
+                // Someone else won
+                setTimeout(() => {
+                  toast('Auction ended. You did not win this auction.');
+                }, 500);
+              } else if (data.reservePriceMet === false) {
+                // No winner (reserve price not met)
+                setTimeout(() => {
+                  toast('Auction ended. No winner - reserve price was not met. All bids have been released.');
+                }, 500);
+              } else {
+                // Auction ended but no winner for other reasons
+                setTimeout(() => {
+                  toast('Auction ended.');
+                }, 500);
+              }
+            } catch (error) {
+              console.error('Error parsing user:', error);
+            }
+          } else {
+            // User not logged in - just show message
+            setTimeout(() => {
+              if (data.reservePriceMet === false) {
+                toast('Auction ended. No winner - reserve price was not met.');
+              } else if (data.winner) {
+                toast('Auction ended.');
+              }
+            }, 500);
+          }
+        });
+
+        // Listen for winner-specific event (more reliable than checking in auction_ended)
+        socket.on('auction_won', (data: any) => {
+          console.log('🎉 Received auction_won event:', data);
+          if (data.orderId) {
+            setTimeout(() => {
+              toast.success('🎉 Congratulations! You won the auction!', { duration: 3000 });
+              setTimeout(() => {
+                window.location.href = `/address?orderId=${data.orderId}`;
+              }, 2000);
+            }, 500);
+          }
+        });
+
+        socket.on('disconnect', (reason: string) => {
+          console.log('⚠️ WebSocket disconnected:', reason);
+          isConnected = false;
+        });
+
+        socket.on('connect_error', (error: any) => {
+          console.error('❌ WebSocket connection error:', error);
+          isConnected = false;
+        });
+      } catch (error) {
+        console.error('Error setting up WebSocket:', error);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (socket) {
+        socket.emit('leave_auction', car.auction?.id);
+        socket.removeAllListeners(); // Remove all listeners to prevent memory leaks
+        socket.disconnect();
+      }
+    };
+  }, [car.type, car.auction?.id, lastBidNotificationTime]);
+
   const handlePlaceBid = async () => {
+    // Check if auction has ended
+    if (auctionEnded) {
+      alert('This auction has ended. Bidding is no longer allowed.');
+      return;
+    }
+
+    // Check auction state
+    if (car.auction?.state && car.auction.state !== 'live') {
+      alert(`Auction is not live. Current status: ${car.auction.state}. Bidding is not allowed.`);
+      return;
+    }
+
     // Check if user is verified
     if (typeof window !== 'undefined') {
       const userStr = localStorage.getItem("user");
@@ -114,9 +561,7 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
         try {
           const user = JSON.parse(userStr);
           if (user.customerType !== 'verified') {
-            // Show verification required message
             alert("Please verify your account first to place bids. You will be redirected to the verification page.");
-            // Use window.location.href for faster navigation
             window.location.href = "/upload-cnic";
             return;
           }
@@ -125,30 +570,80 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
         }
       } else {
         alert("Please login to place bids");
-        // Use window.location.href for faster navigation
         window.location.href = "/login";
         return;
       }
     }
 
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    if (bidStep === 0) {
-      setBidStep(1);
-    } else if (bidStep === 1) {
-      setBidStep(2);
-    } else if (bidStep === 2) {
-      setBidStep(3);
-    } else if (bidStep === 3) {
-      setBidStep(4);
-      setStep(4);
-    } else if (bidStep === 4) {
-      setBidStep(5);
-      setStep(5);
+    if (!car.auction?.id) {
+      alert('Auction information not available');
+      return;
     }
-    setLoading(false);
+
+    // Get bid amount from selected amount or input
+    const bidAmount = selectedAmount || 0;
+    // Enforce backend minimum bid on the frontend (convert to QAR)
+    const effectiveMinBid = minBidQAR && minBidQAR > 0 ? minBidQAR : minIncrementQAR;
+    if (bidAmount < effectiveMinBid) {
+      alert(
+        `Bid amount must be at least ${effectiveMinBid.toFixed(
+          0
+        )} QAR (current minimum bid)`
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { auctionApi } = await import('@/services/auction.api');
+      const amountMinor = Math.round(bidAmount * 100); // Convert to minor units
+
+      // Place bid via API
+      const response = await auctionApi.placeBid(car.auction.id, {
+        amountMinor,
+      });
+
+      if (response.success) {
+        // Bid placed successfully
+        // Update local state immediately
+        const bidAmountQAR = parseFloat(response.data.bid.amountMinor) / 100;
+        setLatestBid(`${bidAmountQAR.toLocaleString()} QAR`);
+        
+        // Update current amount for minimum bid calculation
+        setCurrentAmountMinor(amountMinor);
+        
+        // Get current user name for display
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            setHighestBidder(user.name || user.email?.split('@')[0] || 'You');
+          } catch (error) {
+            setHighestBidder('You');
+          }
+        }
+        
+        // Show success message immediately
+        // Update lastBidNotificationTime to prevent WebSocket duplicate
+        const now = Date.now();
+        setLastBidNotificationTime(now);
+        toast.success(`✅ Bid placed successfully! ${bidAmountQAR.toLocaleString()} QAR`, {
+          id: `bid-api-${now}`, // Unique ID based on timestamp
+        });
+        
+        // Real-time updates will come via WebSocket
+        setBidStep(3);
+        setStep(3);
+      } else {
+        alert('Failed to place bid. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Bid placement error:', error);
+      const errorMessage = error?.response?.data?.error?.message || error?.message || 'Failed to place bid';
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = () => {
@@ -162,10 +657,54 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
   };
 
   const handlePayDeposit = async () => {
+    if (!car.auction?.id) {
+      alert('Auction ID is missing');
+      return;
+    }
+
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setStep(3);
-    setLoading(false);
+    try {
+      const { auctionApi } = await import('@/services/auction.api');
+      const response = await auctionApi.payDeposit(car.auction.id);
+      
+      if (response.success && response.data?.clientSecret) {
+        // Redirect to payment page with deposit details
+        const depositAmount = car.auction?.depositAmount 
+          ? parseFloat(car.auction.depositAmount).toString()
+          : '20000'; // Default 200 QAR in minor units
+        
+        // Include paymentIntentId so we can confirm deposit after Stripe payment succeeds
+        const params = new URLSearchParams({
+          type: 'deposit',
+          auctionId: car.auction.id,
+          clientSecret: response.data.clientSecret,
+          amount: depositAmount,
+        });
+        if (response.data.paymentIntentId) {
+          params.append('paymentIntentId', response.data.paymentIntentId);
+        }
+        
+        window.location.href = `/payment?${params.toString()}`;
+      } else if (response.data?.alreadyPaid) {
+        // Deposit already paid, proceed to bidding
+        setStep(3);
+        alert('Deposit already paid. You can now place bids.');
+      } else {
+        alert('Failed to initialize payment. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Error paying deposit:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to process deposit payment.';
+      
+      // Check if it's a Stripe configuration error
+      if (errorMessage.includes('Stripe') || errorMessage.includes('payment') || errorMessage.includes('configured')) {
+        alert('Payment system is not properly configured. Please contact support.');
+      } else {
+        alert(errorMessage + ' Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -263,8 +802,13 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
                     <p className="text-sm text-[#000000] my-6">
                       Last Bid:{" "}
                       <span className="text-[#038001] ms-1 font-medium bg-[#e8f3e9] p-2 rounded-xl">
-                        {car.lastBid} by @{car.bidder}
+                        {latestBid || car.lastBid} {highestBidder ? `by @${highestBidder}` : `by @${car.bidder}`}
                       </span>
+                      {bidCount > 0 && (
+                        <span className="text-xs text-gray-600 ms-2">
+                          ({bidCount} {bidCount === 1 ? 'bid' : 'bids'})
+                        </span>
+                      )}
                     </p>
 
                     <p className="text-md flex gap-3 text-[#000000] mt-1 bg-white rounded-xl shadow p-5">
@@ -274,7 +818,7 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
                         height={18}
                         alt="clock"
                       />
-                      {car.timeLeft} Left
+                      {timeLeft || car.timeLeft} {auctionEnded ? 'Ended' : 'Left'}
                     </p>
                   </>
                 )}
@@ -337,44 +881,70 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
 
                 {step === 3 && (
                   <div className="bg-white rounded-xl shadow py-7 px-5 mt-3">
-                    <p className="mb-3 font-medium text-[#000000]">
-                      Select amount
-                    </p>
-                    <div className="flex gap-3 flex-wrap mb-4">
-                      {[600, 700, 800, 900].map((amt) => (
-                        <span
-                          key={amt}
-                          onClick={() => setSelectedAmount(amt)}
-                          className={`px-4 py-2 rounded-full cursor-pointer hover:bg-[#ee8e31] hover:text-white text-sm transition ${
-                            selectedAmount === amt
-                              ? "bg-[#ee8e31] text-white"
-                              : "bg-[#fdf4eb] text-[#ee8e31]"
-                          }`}
-                        >
-                          {amt} QAR
-                        </span>
-                      ))}
-                    </div>
+                    {auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled' ? (
+                      <div className="text-center py-4">
+                        {winnerInfo && car.status === 'Sold' ? (
+                          <p className="text-green-600 font-medium">
+                            This auction has ended. <span className="font-bold">{winnerInfo.name}</span> has won this auction.
+                          </p>
+                        ) : (
+                          <p className="text-red-600 font-medium">This auction has ended. Bidding is no longer allowed.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <p className="mb-3 font-medium text-[#000000]">
+                          Select amount
+                        </p>
+                        <div className="flex gap-3 flex-wrap mb-4">
+                          {quickBidOptions.map((amt) => (
+                            <span
+                              key={amt}
+                              onClick={() => setSelectedAmount(amt)}
+                              className={`px-4 py-2 rounded-full cursor-pointer hover:bg-[#ee8e31] hover:text-white text-sm transition ${
+                                selectedAmount === amt
+                                  ? "bg-[#ee8e31] text-white"
+                                  : "bg-[#fdf4eb] text-[#ee8e31]"
+                              }`}
+                            >
+                              {amt} QAR
+                            </span>
+                          ))}
+                        </div>
 
-                    <p className="text-[#000000] text-md mb-2">
-                      Or Enter custom amount (QAR)
-                    </p>
-                    <input
-                      type="number"
-                      placeholder="Enter Amount"
-                      className="w-full border border-[#ebe4e4] rounded-lg p-2 mb-2"
-                    />
-                    <p className="text-[#666666] text-md my-3">
-                      Must be 100+ e.g. 600, 700, 800... 100000
-                    </p>
-                    <button
-                      onClick={handlePlaceBid}
-                      disabled={loading}
-                      className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {loading ? <Loader size="sm" color="#ffffff" /> : null}
-                      {loading ? "Placing bid..." : "Place your bid"}
-                    </button>
+                        <p className="text-[#000000] text-md mb-2">
+                          Or Enter custom amount (QAR)
+                        </p>
+                        <input
+                          type="number"
+                          placeholder="Enter Amount"
+                          value={selectedAmount || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value)) {
+                              setSelectedAmount(value);
+                            } else if (e.target.value === '') {
+                              setSelectedAmount(null);
+                            }
+                          }}
+                          className="w-full border border-[#ebe4e4] rounded-lg p-2 mb-2"
+                          disabled={auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled'}
+                        />
+                        <p className="text-[#666666] text-md my-3">
+                          {`Must be at least ${(
+                            (minBidQAR && minBidQAR > 0 ? minBidQAR : minIncrementQAR) || 0
+                          ).toFixed(0)} QAR`}
+                        </p>
+                        <button
+                          onClick={handlePlaceBid}
+                          disabled={loading || auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled'}
+                          className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {loading ? <Loader size="sm" color="#ffffff" /> : null}
+                          {loading ? "Placing bid..." : "Place your bid"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 {bidStep === 4 && (
@@ -421,9 +991,123 @@ const CarPreview: React.FC<{ car: Car }> = ({ car }) => {
 
           <CarInfo documents={car.documents || []} description={car.product?.description || car.auction?.product?.description || ""} />
           {(bidStep == 0 || bidStep == 3 || bidStep == 4) && <AboutCar filterValues={car.filterValues || []} />}
+          {(bidStep == 0 || bidStep == 3 || bidStep == 4) && car.type === 'auction' && car.auction?.id && (
+            <SimilarProductsSection auctionId={car.auction.id} />
+          )}
         </>
       ) : (
         <Address />
+      )}
+    </div>
+  );
+};
+
+// Similar Products Section Component
+const SimilarProductsSection: React.FC<{ auctionId: string }> = ({ auctionId }) => {
+  const [similarProducts, setSimilarProducts] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const fetchSimilarProducts = async () => {
+      try {
+        setLoading(true);
+        const { auctionApi } = await import('@/services/auction.api');
+        const response = await auctionApi.getSimilarProducts(auctionId, 3);
+        if (response.success && response.data?.products) {
+          setSimilarProducts(response.data.products);
+        }
+      } catch (error) {
+        console.error('Error fetching similar products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSimilarProducts();
+  }, [auctionId]);
+
+  const handleProductClick = (auctionId: string) => {
+    if (!auctionId) {
+      console.error('Auction ID is missing');
+      return;
+    }
+    window.location.href = `/car-preview?id=${auctionId}&type=auction`;
+  };
+
+  // Get filter label helper
+  const getFilterLabel = (filterValue: any): string => {
+    if (!filterValue?.filter) return filterValue?.value || '';
+    const i18n = filterValue.filter.i18n;
+    if (i18n?.en?.label) return i18n.en.label;
+    return filterValue.filter.key || filterValue.value || '';
+  };
+
+  return (
+    <div className="bg-white mx-5 px-5 pt-5 pb-10 rounded-2xl mt-6">
+      <h2 className="font-semibold text-xl pb-5">Bidder also offer similar products</h2>
+      
+      {loading ? (
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-shrink-0 w-[280px] bg-gray-100 rounded-xl h-64 animate-pulse" />
+          ))}
+        </div>
+      ) : similarProducts.length === 0 ? null : (
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          {similarProducts.map((product) => {
+            const price = parseFloat(product.priceMinor || '0') / 100;
+            const imageUrl = product.media?.[0]?.url || "/images/cars/car-1.jpg";
+            const firstThreeFilters = (product.filterValues || []).slice(0, 3);
+
+            return (
+              <div
+                key={product.auctionId || product.id}
+                onClick={() => handleProductClick(product.auctionId)}
+                className="flex-shrink-0 w-[280px] bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+              >
+                {/* Product Image */}
+                <div className="relative w-full h-48 bg-gray-200">
+                  <Image
+                    src={imageUrl}
+                    alt={product.title || "Product"}
+                    fill
+                    className="object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "/images/cars/car-1.jpg";
+                    }}
+                  />
+                </div>
+
+                {/* Product Info */}
+                <div className="p-4">
+                  {/* Row 1: Product Name and Starting Price */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-gray-900 text-sm flex-1 truncate">
+                      {product.title || "Product"}
+                    </h3>
+                    <p className="text-lg font-bold text-[#ee8e31] whitespace-nowrap">
+                      {price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} QAR
+                    </p>
+                  </div>
+                  
+                  {/* Row 2: First Three Filters */}
+                  {firstThreeFilters.length > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
+                      {firstThreeFilters.map((filterValue: any, index: number) => (
+                        <span key={filterValue.id || index} className="truncate">
+                          {filterValue.value}
+                          {index < firstThreeFilters.length - 1 && <span className="mx-1">•</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

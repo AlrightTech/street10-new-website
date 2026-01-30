@@ -18,6 +18,7 @@ import { HiOutlineDotsVertical } from "react-icons/hi";
 import VerificationModal from "@/components/ui/VerificationModal";
 import { resetUser } from "@/redux/authSlice";
 import { userApi, type User } from "@/services/user.api";
+import { walletApi } from "@/services/wallet.api";
 
 export default function Profile() {
   const router = useRouter();
@@ -156,14 +157,9 @@ export default function Profile() {
         
         // Fetch wallet balance if available
         try {
-          const { apiClient } = await import("@/services/api");
-          const walletResponse = await apiClient.get("/wallet/balance");
-          if (walletResponse.data.success && walletResponse.data.data) {
-            // The response structure is: { success: true, data: { availableMinor: "...", ... } }
-            const balanceData = walletResponse.data.data;
-            const balance = parseFloat(balanceData.availableMinor || '0') / 100;
-            setWalletBalance(balance.toFixed(2));
-          }
+          const balanceData = await walletApi.getBalance();
+          const balance = parseFloat(balanceData.availableMinor || '0') / 100;
+          setWalletBalance(balance.toFixed(2));
         } catch (error) {
           console.error("Error fetching wallet balance:", error);
           // Wallet might not be available for all users, so we don't show error
@@ -340,7 +336,7 @@ export default function Profile() {
             {/* Balance */}
             <div 
               onClick={() => {
-                window.location.href = "/profile/wallet-refund-request";
+                window.location.href = "/wallet";
               }}
               className="flex justify-between items-center px-4 py-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200"
             >

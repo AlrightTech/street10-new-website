@@ -12,6 +12,8 @@ interface BidHistoryItem {
   highestBid: number;
   auctionEnd: string;
   auctionId: string;
+  status: 'active' | 'won' | 'lost' | 'outbid';
+  orderId?: string; // If won, link to order
 }
 
 export default function BiddingHistoryPage() {
@@ -27,25 +29,76 @@ export default function BiddingHistoryPage() {
         const response = await userApi.getUserBids({ limit: 50 });
         
         if (response.success && response.data) {
-          // Transform API response to BidHistoryItem format
-          const transformedBids: BidHistoryItem[] = response.data.map((bid) => {
-            const product = bid.auction?.product;
-            const firstMedia = product?.media?.[0];
-            const amountMinor = parseFloat(bid.amountMinor) || 0;
+          // Group bids by auctionId - one entry per auction
+          const bidsByAuction = new Map<string, any[]>();
+          
+          response.data.forEach((bid: any) => {
+            const auctionId = bid.auctionId;
+            if (!bidsByAuction.has(auctionId)) {
+              bidsByAuction.set(auctionId, []);
+            }
+            bidsByAuction.get(auctionId)!.push(bid);
+          });
+          
+          // Transform grouped bids to BidHistoryItem format (one per auction)
+          const transformedBids: BidHistoryItem[] = Array.from(bidsByAuction.entries()).map(([auctionId, auctionBids]) => {
+            // Sort bids by amount descending to get the highest bid
+            const sortedBids = [...auctionBids].sort((a, b) => parseFloat(b.amountMinor) - parseFloat(a.amountMinor));
             
-            // Get highest bid from auction (if available)
-            // For now, we'll use the user's bid as both values since we don't have highest bid in the response
-            const highestBid = amountMinor; // This would ideally come from the auction's current highest bid
+            // Get the highest bid the user placed for this auction
+            const highestUserBid = sortedBids[0];
+            const product = highestUserBid.auction?.product;
+            const firstMedia = product?.media?.[0];
+            const userHighestBidAmount = parseFloat(highestUserBid.amountMinor) || 0;
+            const auctionState = highestUserBid.auction?.state;
+            const isEnded = auctionState === 'ended' || auctionState === 'settled';
+            
+            // Get highest bid overall from auction
+            // Backend includes winningBid in the auction object (highest bid for live, winning bid for ended)
+            const winningBid = highestUserBid.auction?.winningBid;
+            const highestBidOverall = winningBid 
+              ? parseFloat(winningBid.amountMinor)
+              : userHighestBidAmount; // Fallback to user's highest bid if no winningBid
+
+            // Determine status based on auction state and winning bid
+            let status: BidHistoryItem['status'] = 'active';
+            if (isEnded) {
+              // Check if any of the user's bids is the winning bid
+              const hasWinningBid = auctionBids.some(b => b.isWinning);
+              status = hasWinningBid ? 'won' : 'lost';
+            } else if (winningBid && winningBid.userId !== highestUserBid.userId) {
+              status = 'outbid';
+            } else {
+              status = 'active';
+            }
+            
+            // Use status from backend if available (from highest bid)
+            if (highestUserBid.status) {
+              status = highestUserBid.status as BidHistoryItem['status'];
+            }
+            
+            // Get orderId from the winning bid if available
+            const winningBidInAuction = auctionBids.find(b => b.isWinning);
+            const orderId = winningBidInAuction?.orderId || highestUserBid.orderId;
             
             return {
-              id: bid.id,
-              auctionId: bid.auctionId,
+              id: highestUserBid.id, // Use highest bid's ID as the entry ID
+              auctionId: auctionId,
               carImage: firstMedia?.url || "/images/cars/car-1.jpg",
               carMake: product?.title || "Product",
-              yourBid: amountMinor / 100, // Convert from minor units to major units
-              highestBid: highestBid / 100,
-              auctionEnd: bid.auction?.endAt ? new Date(bid.auction.endAt).toISOString().split('T')[0] : "",
+              yourBid: userHighestBidAmount / 100, // User's highest bid for this auction
+              highestBid: highestBidOverall / 100, // Overall highest bid
+              auctionEnd: highestUserBid.auction?.endAt ? new Date(highestUserBid.auction.endAt).toISOString().split('T')[0] : "",
+              status,
+              orderId: orderId || undefined,
             };
+          });
+          
+          // Sort by auction end date (most recent first) or by placed date
+          transformedBids.sort((a, b) => {
+            const dateA = new Date(a.auctionEnd).getTime();
+            const dateB = new Date(b.auctionEnd).getTime();
+            return dateB - dateA; // Most recent first
           });
           
           setBids(transformedBids);
@@ -64,7 +117,22 @@ export default function BiddingHistoryPage() {
   }, []);
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString()}`;
+    return `QAR ${amount.toLocaleString()}`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { text: string; className: string }> = {
+      active: { text: 'Active', className: 'bg-green-100 text-green-800' },
+      won: { text: 'Won', className: 'bg-blue-100 text-blue-800' },
+      lost: { text: 'Lost', className: 'bg-gray-100 text-gray-800' },
+      outbid: { text: 'Outbid', className: 'bg-orange-100 text-orange-800' },
+    };
+    const config = statusConfig[status] || statusConfig.active;
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${config.className}`}>
+        {config.text}
+      </span>
+    );
   };
 
   return (
@@ -124,60 +192,78 @@ export default function BiddingHistoryPage() {
           </button>
         </div>
 
-        {/* Bidding History List */}
-        <div className="space-y-4">
+        {/* Bidding History Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {loading ? (
             <div className="text-center py-10">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
             </div>
           ) : bids.length > 0 ? (
-            bids.map((bid) => (
-              <div
-                key={bid.id}
-                className="bg-gray-100 rounded-lg p-4 flex items-center gap-4"
-              >
-                {/* Car Image */}
-                <div className="flex-shrink-0">
-                  <Image
-                    src={bid.carImage}
-                    alt={bid.carMake}
-                    width={80}
-                    height={80}
-                    className="rounded-lg object-cover"
-                  />
-                </div>
-
-                {/* Bid Details */}
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-black mb-2">
-                    {bid.carMake}
-                  </h3>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-gray-700">
-                      Your Bid: <span className="font-semibold">{formatCurrency(bid.yourBid)}</span>
-                    </p>
-                    <p className="text-gray-700">
-                      Highest Bid: <span className="font-semibold">{formatCurrency(bid.highestBid)}</span>
-                    </p>
-                    <p className="text-[#EE8E32] font-semibold">
-                      Auction End: {bid.auctionEnd}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Increase Bid Button */}
-                <div className="flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      window.location.href = `/bidding-history/increase-bid?id=${bid.auctionId}`;
-                    }}
-                    className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition"
-                  >
-                    Increase Bid
-                  </button>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Product</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Your Bid</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Highest Bid</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Auction End</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {bids.map((bid) => (
+                    <tr key={bid.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <Image
+                            src={bid.carImage}
+                            alt={bid.carMake}
+                            width={60}
+                            height={60}
+                            className="rounded-lg object-cover"
+                          />
+                          <span className="font-semibold text-black">{bid.carMake}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        {getStatusBadge(bid.status)}
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        <span className="font-semibold">{formatCurrency(bid.yourBid)}</span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        <span className="font-semibold">{formatCurrency(bid.highestBid)}</span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="text-[#EE8E32] font-semibold">{bid.auctionEnd}</span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {bid.status === 'won' && bid.orderId ? (
+                          <button
+                            onClick={() => {
+                              window.location.href = `/order-preview?orderId=${bid.orderId}`;
+                            }}
+                            className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                          >
+                            View Order
+                          </button>
+                        ) : bid.status === 'active' || bid.status === 'outbid' ? (
+                          <button
+                            onClick={() => {
+                              window.location.href = `/car-preview?id=${bid.auctionId}&type=auction`;
+                            }}
+                            className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                          >
+                            {bid.status === 'outbid' ? 'Increase Bid' : 'View Auction'}
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="text-center py-10">
               <p className="text-gray-500">No bidding history found</p>

@@ -1,12 +1,18 @@
 import { apiClient } from "./api";
 
 export interface ShippingAddress {
-  street?: string;
+  country?: string;
   city?: string;
+  zone?: string;
+  street?: string;
+  building?: string;
+  homeOffice?: string;
+  phone?: string;
+  instructions?: string;
   state?: string;
   zipCode?: string;
-  country?: string;
-  [key: string]: unknown;
+  // Allow additional fields, but keep them stringly-typed for form inputs.
+  [key: string]: string | undefined;
 }
 
 export interface Order {
@@ -15,6 +21,7 @@ export interface Order {
   vendorId: string;
   orderNumber: string;
   totalMinor: string;
+  remainingPayment?: string; // Remaining payment after deposit is applied (for auction orders)
   currency: string;
   status: string;
   paymentMethod: string;
@@ -90,6 +97,23 @@ export const orderApi = {
     couponCode?: string;
   }): Promise<{ success: boolean; data: { order: Order } }> => {
     const response = await apiClient.post("/orders", data);
+    return response.data;
+  },
+
+  updateAddress: async (
+    orderId: string,
+    shippingAddress: ShippingAddress
+  ): Promise<{ success: boolean; data: { order: Order } }> => {
+    const response = await apiClient.patch(`/orders/${orderId}/address`, {
+      shippingAddress,
+    });
+    return response.data;
+  },
+
+  completePayment: async (
+    orderId: string
+  ): Promise<{ success: boolean; data: { order: Order } }> => {
+    const response = await apiClient.post(`/orders/${orderId}/complete-payment`);
     return response.data;
   },
 };

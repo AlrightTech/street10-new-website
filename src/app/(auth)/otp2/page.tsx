@@ -170,6 +170,61 @@ function AuthPage() {
             token: response.data.token,
           })
         );
+        
+        // Upload pending profile image if stored during registration
+        const pendingImageData = sessionStorage.getItem('pendingProfileImage');
+        const pendingImageName = sessionStorage.getItem('pendingProfileImageName');
+        const pendingImageType = sessionStorage.getItem('pendingProfileImageType');
+        
+        if (pendingImageData && pendingImageName && pendingImageType) {
+          try {
+            // Convert base64 data URL back to File
+            const base64Data = pendingImageData.split(',')[1]; // Remove data:image/...;base64, prefix
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: pendingImageType });
+            const file = new File([blob], pendingImageName, { type: pendingImageType });
+            
+            // Upload to S3
+            const { uploadFileToS3 } = await import('@/services/upload.api');
+            const folder = response.data.user.role === 'vendor' ? 'vendors' : 'profiles';
+            const profileImageUrl = await uploadFileToS3(file, folder);
+            
+            // Update user profile with the uploaded image URL
+            const { userApi } = await import('@/services/user.api');
+            await userApi.updateProfile({ profileImageUrl } as any);
+            
+            // If vendor, also update vendor table
+            if (response.data.user.role === 'vendor') {
+              const { apiClient } = await import('@/services/api');
+              await apiClient.patch(`/vendors/${response.data.user.id}`, { profileImageUrl });
+            }
+            
+            // Refresh user data
+            const updatedUser = await userApi.getCurrentUser();
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            
+            // Clear sessionStorage
+            sessionStorage.removeItem('pendingProfileImage');
+            sessionStorage.removeItem('pendingProfileImageName');
+            sessionStorage.removeItem('pendingProfileImageType');
+            
+            toast.success("Profile image uploaded successfully!");
+          } catch (imageError: any) {
+            console.error("Failed to upload pending profile image:", imageError);
+            // Don't block OTP verification if image upload fails
+            toast.error("Profile image upload failed. You can upload it later in profile settings.");
+            // Clear sessionStorage even on error
+            sessionStorage.removeItem('pendingProfileImage');
+            sessionStorage.removeItem('pendingProfileImageName');
+            sessionStorage.removeItem('pendingProfileImageType');
+          }
+        }
+        
         toast.success("Login successful!");
         
         // Dispatch custom event to notify Header component of auth state change

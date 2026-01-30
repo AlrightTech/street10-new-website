@@ -111,6 +111,8 @@ function Cars() {
   const cars = auctions.map((auction) => {
     const currentBid = auction.currentBid
       ? parseFloat(auction.currentBid.amountMinor) / 100
+      : (auction as any).startingPrice
+      ? parseFloat((auction as any).startingPrice) / 100
       : 0;
     const endDate = new Date(auction.endAt);
     const now = new Date();
@@ -118,7 +120,36 @@ function Cars() {
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const end = `${days}d : ${hours}h : ${minutes}m`;
+    const end = diff <= 0 ? "Ended" : `${days}d : ${hours}h : ${minutes}m`;
+
+    // Map auction state to display status
+    const getStatusFromState = (state: string, reservePriceMet?: boolean) => {
+      switch (state) {
+        case "scheduled":
+          return "Scheduled";
+        case "live":
+          // Check reserve price status for live auctions
+          if (reservePriceMet === false) {
+            return "Pending"; // Reserve price not met yet
+          }
+          return "Live"; // Reserve price met or no reserve price
+        case "ended":
+          // If reserve price not met, show as "Ended" (unsold)
+          if (reservePriceMet === false) {
+            return "Ended";
+          }
+          return "Ended"; // Will show as "Sold" in detail page if has bid
+        case "settled":
+          return "Sold";
+        case "draft":
+          return "Scheduled";
+        default:
+          return "Scheduled";
+      }
+    };
+
+    const reservePriceMet = (auction as any).reservePriceMet;
+    const status = getStatusFromState(auction.state, reservePriceMet);
 
     return {
       id: auction.id,
@@ -126,7 +157,7 @@ function Cars() {
       bid: `${currentBid.toLocaleString()} QAR`,
       end: end,
       plate: auction.product?.title || "Auction Item",
-      provider: ["Provided by us", auction.type || "Auction", "Active"],
+      provider: ["Provided by us", auction.type || "Auction", status],
     };
   });
 

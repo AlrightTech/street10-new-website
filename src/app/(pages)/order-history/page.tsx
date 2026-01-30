@@ -12,6 +12,7 @@ interface OrderHistoryItem {
   price: number;
   image: string;
   orderId: string;
+  status: string;
 }
 
 export default function OrderHistoryPage() {
@@ -36,6 +37,7 @@ export default function OrderHistoryPage() {
             price: total,
             image: firstItem?.product?.media?.[0]?.url || "/images/cars/car-1.jpg",
             orderId: order.id,
+            status: order.status || 'created',
           };
         });
         setOrders(transformedOrders);
@@ -50,6 +52,7 @@ export default function OrderHistoryPage() {
             price: 600,
             image: "/images/cars/car-1.jpg",
             orderId: "order-12345-1",
+            status: "created",
           },
           {
             id: "#12345",
@@ -58,6 +61,7 @@ export default function OrderHistoryPage() {
             price: 600,
             image: "/images/cars/car-1.jpg",
             orderId: "order-12345-2",
+            status: "created",
           },
           {
             id: "#12345",
@@ -66,6 +70,7 @@ export default function OrderHistoryPage() {
             price: 600,
             image: "/images/cars/car-1.jpg",
             orderId: "order-12345-3",
+            status: "created",
           },
           {
             id: "#12345",
@@ -74,6 +79,7 @@ export default function OrderHistoryPage() {
             price: 600,
             image: "/images/cars/car-1.jpg",
             orderId: "order-12345-4",
+            status: "created",
           },
           {
             id: "#12345",
@@ -82,6 +88,7 @@ export default function OrderHistoryPage() {
             price: 600,
             image: "/images/cars/car-1.jpg",
             orderId: "order-12345-5",
+            status: "created",
           },
         ]);
       } finally {
@@ -149,60 +156,69 @@ export default function OrderHistoryPage() {
           </button>
         </div>
 
-        {/* Order History List */}
-        <div className="space-y-4">
+        {/* Order History Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {loading ? (
             <div className="text-center py-10">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
             </div>
           ) : orders.length > 0 ? (
-            orders.map((order, index) => (
-              <div
-                key={index}
-                className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-4"
-              >
-                {/* Car Image */}
-                <div className="flex-shrink-0">
-                  <Image
-                    src={order.image}
-                    alt={order.carName}
-                    width={80}
-                    height={80}
-                    className="rounded-lg object-cover"
-                  />
-                </div>
-
-                {/* Order Details */}
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-black mb-2">
-                    {order.carName}
-                  </h3>
-                  <div className="space-y-1 text-sm">
-                    <p className="text-gray-500">
-                      Order ID: {order.id}
-                    </p>
-                    <p className="text-gray-500">
-                      Date: {order.date}
-                    </p>
-                    <p className="text-[#EE8E32] font-semibold text-base">
-                      QAR {order.price}
-                    </p>
-                  </div>
-                </div>
-
-                {/* View Order Button */}
-                <div className="flex-shrink-0">
-                  <button
-                    onClick={() => {
-                      window.location.href = `/order-details?id=${order.orderId || index}`;
-                    }}
-                    className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap"
-                  >
-                    View Order
-                  </button>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Product</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Order ID</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {orders.map((order, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <Image
+                            src={order.image}
+                            alt={order.carName}
+                            width={60}
+                            height={60}
+                            className="rounded-lg object-cover"
+                          />
+                          <span className="font-semibold text-black">{order.carName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        {order.id}
+                      </td>
+                      <td className="px-4 py-4 text-gray-700">
+                        {order.date}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="capitalize text-gray-700">{order.status.replace('_', ' ')}</span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className="text-[#EE8E32] font-semibold">
+                          QAR {order.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => {
+                            window.location.href = `/order-preview?orderId=${order.orderId}`;
+                          }}
+                          className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                        >
+                          View Order
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="text-center py-10">
               <p className="text-gray-500">No orders found</p>

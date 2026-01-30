@@ -67,7 +67,7 @@ export const userApi = {
   /**
    * Update current user profile
    */
-  updateProfile: async (data: { phone?: string; lang?: string }): Promise<User> => {
+  updateProfile: async (data: { phone?: string; lang?: string; profileImageUrl?: string }): Promise<User> => {
     const response = await apiClient.patch<ApiResponse<{ user: User }>>("/users/me", data);
     if (response.data.success && response.data.data?.user) {
       // Update localStorage
@@ -102,10 +102,17 @@ export const userApi = {
       amountMinor: string;
       placedAt: string;
       isWinning: boolean;
+      orderId?: string | null; // Order ID if bid won and order exists
       auction: {
         id: string;
         endAt: string;
         state: string;
+        reservePrice?: string | null;
+        winningBid?: {
+          id: string;
+          amountMinor: string;
+          userId: string;
+        } | null;
         product: {
           id: string;
           title: string;

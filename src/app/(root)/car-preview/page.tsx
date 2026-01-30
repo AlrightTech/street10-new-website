@@ -79,6 +79,8 @@ function Page() {
             ? parseFloat(winningBid.amountMinor) / 100
             : auction.currentBid
             ? parseFloat(auction.currentBid.amountMinor) / 100
+            : (auction as any).startingPrice
+            ? parseFloat((auction as any).startingPrice) / 100
             : 0;
           
           const endDate = new Date(auction.endAt);
@@ -87,16 +89,25 @@ function Page() {
           const hours = Math.floor(diff / (1000 * 60 * 60));
           const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
           const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-          const timeLeft = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+          const timeLeft = diff <= 0 ? "00:00:00" : `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 
           // Map auction state to display status
-          const getStatusFromState = (state: string, hasBid: boolean) => {
+          const getStatusFromState = (state: string, hasBid: boolean, reservePriceMet?: boolean) => {
             switch (state) {
               case "scheduled":
+              case "draft":
                 return "Pending";
               case "live":
-                return "Ready";
+                // Check reserve price status for live auctions
+                if (reservePriceMet === false) {
+                  return "Pending"; // Reserve price not met yet
+                }
+                return "Ready"; // Reserve price met or no reserve price
               case "ended":
+                // If reserve price not met, show as "Ended" (unsold)
+                if (reservePriceMet === false) {
+                  return "Ended";
+                }
                 return hasBid ? "Sold" : "Ended";
               case "settled":
                 return "Sold";
@@ -108,18 +119,19 @@ function Page() {
           };
 
           const hasBid = !!winningBid || !!auction.currentBid;
+          const reservePriceMet = (auction as any).reservePriceMet;
 
           if (isMountedRef.current) {
             setCar({
               id: parseInt(auction.id) || 0,
               name: auction.product?.title || "Auction Item",
-              status: getStatusFromState(auction.state, hasBid) as "Ready" | "Sold" | "Pending" | "Live" | "Ended" | "Settled",
+              status: getStatusFromState(auction.state, hasBid, reservePriceMet) as "Ready" | "Sold" | "Pending" | "Live" | "Ended" | "Settled",
               lastBid: `${currentBid.toLocaleString()} QAR`,
-              bidder: winningBid?.userId || auction.currentBid?.userId || "No bids yet",
+              bidder: winningBid?.bidderName || (auction.currentBid as any)?.bidderName || "No bids yet",
               timeLeft: timeLeft,
               images: auction.product?.media?.map((m) => m.url) || ["/images/cars/car-1.jpg"],
               type: "auction",
-              auction: auction, // This includes depositAmount from the API
+              auction: auction, // This includes depositAmount, startingPrice, reservePrice from the API
               documents: auction.product?.documents || [],
               filterValues: auction.product?.filterValues || [],
             });

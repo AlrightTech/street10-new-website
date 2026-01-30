@@ -101,9 +101,11 @@ apiClient.interceptors.response.use(
         // Check if we're on a public page (login, signup, vendors, etc.) - don't logout
         if (typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
-          const publicPaths = ['/login', '/signup', '/build-vendor-account', '/otp2', '/vendors', '/vendor', '/bidding', '/e-commerce', '/'];
-          
-          if (publicPaths.some(path => currentPath.startsWith(path))) {
+          // IMPORTANT: do NOT include "/" here, because every path starts with "/".
+          // Home page is handled explicitly via currentPath === "/".
+          const publicPathPrefixes = ['/login', '/signup', '/build-vendor-account', '/otp2', '/vendors', '/vendor', '/bidding', '/e-commerce'];
+
+          if (currentPath === '/' || publicPathPrefixes.some((p) => currentPath.startsWith(p))) {
             // On public page, just reject the error - don't logout
             return Promise.reject(error);
           }
@@ -167,9 +169,9 @@ apiClient.interceptors.response.use(
               
               // Only logout if we're on a protected page
               const currentPath = window.location.pathname;
-              const publicPaths = ['/login', '/signup', '/build-vendor-account'];
+              const publicPathPrefixes = ['/login', '/signup', '/build-vendor-account'];
               
-              if (!publicPaths.some(path => currentPath.startsWith(path))) {
+              if (!(currentPath === '/' || publicPathPrefixes.some((p) => currentPath.startsWith(p)))) {
                 window.location.href = "/login";
                 store.dispatch(resetUser());
                 localStorage.clear();
@@ -183,9 +185,9 @@ apiClient.interceptors.response.use(
           } else {
             // No refresh token - logout user (only if not on public page)
             const currentPath = window.location.pathname;
-            const publicPaths = ['/login', '/signup', '/build-vendor-account', '/vendors', '/vendor', '/bidding', '/e-commerce', '/'];
-            
-            if (!publicPaths.some(path => currentPath.startsWith(path))) {
+            const publicPathPrefixes = ['/login', '/signup', '/build-vendor-account', '/vendors', '/vendor', '/bidding', '/e-commerce'];
+
+            if (!(currentPath === '/' || publicPathPrefixes.some((p) => currentPath.startsWith(p)))) {
               window.location.href = "/login";
               store.dispatch(resetUser());
               localStorage.clear();

@@ -307,6 +307,23 @@ export default function BuildVendorAccountPage() {
           response.data.user.status === "pending_phone";
         
         if (needsOTPVerification) {
+          // OTP verification required - store profile image in sessionStorage for upload after verification
+          if (formData.image) {
+            try {
+              // Convert file to base64 for storage (temporary, will be uploaded to S3 after OTP verification)
+              const reader = new FileReader();
+              reader.onload = () => {
+                const base64Data = reader.result as string;
+                sessionStorage.setItem('pendingProfileImage', base64Data);
+                sessionStorage.setItem('pendingProfileImageName', formData.image!.name);
+                sessionStorage.setItem('pendingProfileImageType', formData.image!.type);
+              };
+              reader.readAsDataURL(formData.image);
+            } catch (error) {
+              console.error('Failed to store profile image for later upload:', error);
+            }
+          }
+          
           // OTP verification required - redirect to OTP page
           toast.success("Vendor account created! Please verify your email.");
           const email = encodeURIComponent(
@@ -314,9 +331,7 @@ export default function BuildVendorAccountPage() {
           );
           window.location.href = `/otp2?email=${email}`;
         } else {
-          // Account already verified - store tokens and redirect
-          toast.success("Vendor account created successfully!");
-          // Store token, refresh token, and user data (website context)
+          // Account already verified - store tokens and upload profile image if provided
           if (response.data.token) {
             localStorage.setItem("token", response.data.token);
             if (response.data.refreshToken) {
@@ -324,11 +339,40 @@ export default function BuildVendorAccountPage() {
             }
             localStorage.setItem("user", JSON.stringify(response.data.user));
             
+            // Upload profile image if provided
+            if (formData.image) {
+              try {
+                const { uploadFileToS3 } = await import('@/services/upload.api');
+                const profileImageUrl = await uploadFileToS3(formData.image, 'vendors');
+                
+                // Update vendor profile with the uploaded image URL
+                // Vendor profile image is stored on both User and Vendor tables
+                const { userApi } = await import('@/services/user.api');
+                await userApi.updateProfile({ profileImageUrl } as any);
+                
+                // Also update vendor table (vendor API endpoint)
+                const { apiClient } = await import('@/services/api');
+                await apiClient.patch(`/vendors/${response.data.user.id}`, { profileImageUrl });
+                
+                // Refresh user data
+                const updatedUser = await userApi.getCurrentUser();
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+                
+                toast.success("Profile image uploaded successfully!");
+              } catch (imageError: any) {
+                console.error("Failed to upload profile image:", imageError);
+                // Don't block registration if image upload fails
+                toast.error("Profile image upload failed. You can upload it later in vendor dashboard.");
+              }
+            }
+            
             // Dispatch custom event to notify Header component of auth state change
             if (typeof window !== "undefined") {
               window.dispatchEvent(new Event("authStateChanged"));
             }
           }
+
+          toast.success("Vendor account created successfully!");
 
           // Before moving vendor to admin panel, log them out from website
           if (typeof window !== "undefined") {
