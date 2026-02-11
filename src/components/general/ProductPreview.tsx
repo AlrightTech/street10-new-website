@@ -1,6 +1,9 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCart } from "@/contexts/CartContext";
+import { orderApi } from "@/services/order.api";
 import AboutCar from "./AboutCar";
 import CarInfo from "./CarInfo";
 
@@ -41,6 +44,8 @@ interface Product {
 }
 
 const ProductPreview: React.FC<{ product: Product }> = ({ product }) => {
+  const router = useRouter();
+  const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState(product.images[0] || "/images/cars/car-1.jpg");
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -51,15 +56,53 @@ const ProductPreview: React.FC<{ product: Product }> = ({ product }) => {
   const isActive = product.status === "active";
 
   const handleBuyNow = async () => {
-    // For now, keep the user on this page and do nothing.
-    // The actual purchase flow for e-commerce products (superadmin/vendor)
-    // will be implemented later.
     if (!isInStock || !isActive) {
+      alert("This product is currently unavailable.");
       return;
     }
+
+    // Check if user is logged in
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please login to purchase items.");
+        window.location.href = "/login";
+        return;
+      }
+    }
+
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    setLoading(false);
+    try {
+      // Get vendor ID (empty for superadmin products - backend will handle it)
+      const vendorId = product.vendor?.id || undefined;
+
+      // Create order immediately
+      const response = await orderApi.create({
+        vendorId, // undefined for superadmin products
+        items: [
+          {
+            productId: product.id,
+            quantity: quantity,
+          },
+        ],
+        shippingAddress: {}, // Will be filled on address page
+        paymentMethod: "card",
+      });
+
+      if (response.success && response.data.order) {
+        // Redirect to address page
+        router.push(`/address?orderId=${response.data.order.id}`);
+      } else {
+        alert("Failed to create order. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Error creating order:", error);
+      alert(
+        error?.response?.data?.message || "Failed to create order. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddToCart = async () => {
@@ -79,10 +122,16 @@ const ProductPreview: React.FC<{ product: Product }> = ({ product }) => {
     }
 
     setLoading(true);
-    // TODO: Implement actual add to cart functionality
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
-    alert("Product added to cart!");
+    try {
+      const success = await addToCart(product.id, quantity);
+      if (success) {
+        // Success message is shown by CartContext
+      }
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -227,7 +276,131 @@ const ProductPreview: React.FC<{ product: Product }> = ({ product }) => {
         {product.filterValues && product.filterValues.length > 0 && (
           <AboutCar filterValues={product.filterValues} />
         )}
+        {/* Similar Products Section - Only for superadmin products */}
+        {!product.vendor && (
+          <SimilarProductsSection productId={product.id} />
+        )}
       </div>
+    </div>
+  );
+};
+
+// Similar Products Section Component for E-commerce
+const SimilarProductsSection: React.FC<{ productId: string }> = ({ productId }) => {
+  const [similarProducts, setSimilarProducts] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchSimilarProducts = async () => {
+      try {
+        setLoading(true);
+        const { productApi } = await import('@/services/product.api');
+        // Fetch other superadmin e-commerce products (vendorId = null, status = active)
+        // Backend expects superadmin_only as query param 'true' or '1'
+        const response = await productApi.getAll({
+          superadmin_only: true as any, // Will be converted to 'true' string by axios
+          status: 'active',
+          limit: 4, // Get 4, we'll exclude current and show 3
+        });
+        
+        if (response.success && response.data) {
+          // Filter out current product and limit to 3
+          const filtered = response.data
+            .filter((p: any) => p.id !== productId)
+            .slice(0, 3);
+          setSimilarProducts(filtered);
+        }
+      } catch (error) {
+        console.error('Error fetching similar products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSimilarProducts();
+  }, [productId]);
+
+  const handleProductClick = (productId: string) => {
+    if (!productId) {
+      console.error('Product ID is missing');
+      return;
+    }
+    window.location.href = `/product-preview?id=${productId}`;
+  };
+
+  return (
+    <div className="bg-white mx-5 px-5 pt-5 pb-10 rounded-2xl mt-6">
+      <h2 className="font-semibold text-xl pb-5">Similar Products</h2>
+      
+      {loading ? (
+        <div className="flex gap-4 overflow-x-auto pb-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex-shrink-0 w-[280px] bg-gray-100 rounded-xl h-64 animate-pulse" />
+          ))}
+        </div>
+      ) : similarProducts.length === 0 ? null : (
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+          {similarProducts.map((product) => {
+            const price = parseFloat(product.priceMinor || '0') / 100;
+            const imageUrl = product.media?.[0]?.url || "/images/cars/car-1.jpg";
+            const firstThreeFilters = (product.filterValues || []).slice(0, 3);
+
+            return (
+              <div
+                key={product.id}
+                onClick={() => handleProductClick(product.id)}
+                className="flex-shrink-0 w-[280px] bg-white rounded-xl shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+              >
+                {/* Product Image */}
+                <div className="relative w-full h-48 bg-gray-200">
+                  <Image
+                    src={imageUrl}
+                    alt={product.title || "Product"}
+                    fill
+                    className="object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "/images/cars/car-1.jpg";
+                    }}
+                  />
+                </div>
+
+                {/* Product Info */}
+                <div className="p-4">
+                  {/* Row 1: Product Name and Price */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-gray-900 text-sm flex-1 truncate">
+                      {product.title || "Product"}
+                    </h3>
+                    <p className="text-lg font-bold text-[#ee8e31] whitespace-nowrap">
+                      {price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {product.currency || 'QAR'}
+                    </p>
+                  </div>
+                  
+                  {/* Row 2: Stock Status */}
+                  {product.stock !== undefined && (
+                    <p className={`text-xs mb-2 ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {product.stock > 0 ? `${product.stock} available` : 'Out of stock'}
+                    </p>
+                  )}
+                  
+                  {/* Row 3: First Three Filters */}
+                  {firstThreeFilters.length > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
+                      {firstThreeFilters.map((filterValue: any, index: number) => (
+                        <span key={filterValue.id || index} className="truncate">
+                          {filterValue.value}
+                          {index < firstThreeFilters.length - 1 && <span className="mx-1">•</span>}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

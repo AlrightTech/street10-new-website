@@ -8,6 +8,7 @@ export interface Auction {
   startAt: string;
   endAt: string;
   reservePrice?: string;
+  reservePriceMet?: boolean;
   minIncrement?: string;
   depositAmount?: string;
   buyNowPrice?: string;

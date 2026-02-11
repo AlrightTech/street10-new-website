@@ -17,6 +17,8 @@ import { homeApi } from "@/services/home.api";
 import { categoryApi } from "@/services/category.api";
 import type { Product } from "@/services/product.api";
 import type { Category } from "@/services/category.api";
+import VendorProductCard from "@/components/products/VendorProductCard";
+import ProductCard from "@/components/products/ProductCard";
 
 interface SimpleCarSliderProps {
   type?: "products" | "vendor";
@@ -114,8 +116,8 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
     window.location.href = `/product-preview?id=${productId}`;
   };
 
-  // Transform product data to match the car format
-  const cars = products.map((product) => {
+  // Only transform to car format for non-vendor products
+  const cars = type === "vendor" ? [] : products.map((product) => {
     const price = parseFloat(product.priceMinor) / 100;
     // Handle both nested (from home API) and flat (from products API) category structures
     const categoryName = (product.categories?.[0] as any)?.category?.name 
@@ -204,52 +206,14 @@ function CarSlider({ type = "products" }: SimpleCarSliderProps) {
                 <div className="animate-pulse">Loading...</div>
               </div>
             </SwiperSlide>
-          ) : cars.length > 0 ? (
-            cars.map((car, index) => (
-              <SwiperSlide key={car.id || index}>
-                <div
-                  onClick={(e) => handleProductClick(e, car.id)}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
-                >
-                  <div className="relative w-full flex-shrink-0">
-                    <Image
-                      src={car.src}
-                      alt={`Car ${index + 1}`}
-                      width={400}
-                      height={250}
-                      className="w-full h-56 md:h-64 lg:h-72 object-cover"
-                    />
-                    <div className="flex gap-2 absolute top-3 right-3 md:top-4 md:right-4 pointer-events-none z-10">
-                      <Image
-                        src={"/icons/frwrd.svg"}
-                        alt="forward"
-                        width={36}
-                        height={36}
-                      />
-                      <Image
-                        src={"/icons/badge-1.svg"}
-                        alt="badge"
-                        width={36}
-                        height={36}
-                      />
-                    </div>
-                  </div>
-                  <div className="p-4 border-t mt-auto flex flex-col justify-between">
-                    <p className="text-[#333333] font-medium mb-2 sm:mb-3 text-sm sm:text-base">
-                      {car.plate}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {car.provider.map((info, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 text-xs sm:text-sm bg-white rounded-full text-[#666666] shadow-[0px_1px_4px_0px_#0000001A]"
-                        >
-                          {info}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+          ) : products.length > 0 ? (
+            products.map((product, index) => (
+              <SwiperSlide key={product.id || index}>
+                {type === "vendor" ? (
+                  <VendorProductCard product={product} />
+                ) : (
+                  <ProductCard product={product} />
+                )}
               </SwiperSlide>
             ))
           ) : (

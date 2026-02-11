@@ -49,7 +49,7 @@ function AboutCar({ filterValues }: AboutCarProps) {
 
   return (
     <div className="bg-white mx-5 px-5 pt-5 pb-10 rounded-2xl">
-      <h2 className="font-semibold text-xl pb-5">About The Car</h2>
+      <h2 className="font-semibold text-xl pb-5">About The Product</h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6 justify-items-center">
         {filterValues.map((filterValue) => {
           const filter = filterValue.filter;

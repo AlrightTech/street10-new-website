@@ -110,7 +110,13 @@ const Address = () => {
       // Calculate remaining payment: final price - deposit
       // Deposit is already held in onHoldMinor and will be applied to order
       // User needs to pay the remaining amount
-      const remainingAmount = updatedOrder?.remainingPayment || updatedOrder?.totalMinor || order?.totalMinor || '0';
+      // For e-commerce orders, remainingPayment should equal totalMinor (no deposit)
+      const remainingPayment = updatedOrder?.remainingPayment 
+        ? parseFloat(updatedOrder.remainingPayment) 
+        : 0;
+      const remainingAmount = remainingPayment > 0 
+        ? updatedOrder?.remainingPayment 
+        : updatedOrder?.totalMinor || order?.totalMinor || '0';
       
       // Redirect to payment page with orderId and remaining amount
       router.push(`/payment?type=order&orderId=${targetOrderId}&amount=${remainingAmount}`);

@@ -26,6 +26,10 @@ export interface Order {
   status: string;
   paymentMethod: string;
   shippingAddress?: ShippingAddress;
+  auctionId?: string; // For auction orders
+  paymentStage?: string; // For auction orders: down_payment_required, final_payment_required, full_payment_required, fully_paid
+  downPaymentMinor?: string; // For auction orders
+  remainingPaymentMinor?: string; // For auction orders
   items?: Array<{
     id: string;
     productId: string;
@@ -90,7 +94,7 @@ export const orderApi = {
   },
 
   create: async (data: {
-    vendorId: string;
+    vendorId?: string;
     items: Array<{ productId: string; quantity: number }>;
     shippingAddress: ShippingAddress;
     paymentMethod: string;
@@ -114,6 +118,28 @@ export const orderApi = {
     orderId: string
   ): Promise<{ success: boolean; data: { order: Order } }> => {
     const response = await apiClient.post(`/orders/${orderId}/complete-payment`);
+    return response.data;
+  },
+
+  // Auction order payment endpoints
+  payDownPayment: async (
+    orderId: string
+  ): Promise<{ success: boolean; data: { paymentIntent: { clientSecret: string; paymentIntentId: string; amountMinor: string } } }> => {
+    const response = await apiClient.post(`/orders/${orderId}/pay-down-payment`);
+    return response.data;
+  },
+
+  payFinalPayment: async (
+    orderId: string
+  ): Promise<{ success: boolean; data: { paymentIntent: { clientSecret: string; paymentIntentId: string; amountMinor: string } } }> => {
+    const response = await apiClient.post(`/orders/${orderId}/pay-final-payment`);
+    return response.data;
+  },
+
+  payFullPayment: async (
+    orderId: string
+  ): Promise<{ success: boolean; data: { paymentIntent: { clientSecret: string; paymentIntentId: string; amountMinor: string } } }> => {
+    const response = await apiClient.post(`/orders/${orderId}/pay-full-payment`);
     return response.data;
   },
 };

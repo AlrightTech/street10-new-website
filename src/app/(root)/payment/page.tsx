@@ -21,6 +21,7 @@ function StripePaymentForm({
   auctionId,
   paymentIntentId,
   amount,
+  order,
   onSuccess,
   onError 
 }: {
@@ -30,6 +31,7 @@ function StripePaymentForm({
   auctionId?: string | null;
   paymentIntentId?: string | null;
   amount: number;
+  order?: Order | null;
   onSuccess: () => void;
   onError: (error: string) => void;
 }) {
@@ -70,33 +72,36 @@ function StripePaymentForm({
         setErrorMessage(error.message || 'Payment failed. Please try again.');
         onError(error.message || 'Payment failed');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        // Check if we're in development/local environment (bypass webhooks) or production (use webhooks)
-        // Webhooks can't reach localhost, so we bypass them in development
-        const isLocalDevelopment = 
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1' ||
-          window.location.hostname.startsWith('192.168.') ||
-          window.location.hostname.startsWith('10.') ||
-          process.env.NEXT_PUBLIC_USE_WEBHOOKS === 'false' ||
-          (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_USE_WEBHOOKS);
-        
-        // In development/local: Call API directly (bypass webhooks since they can't reach localhost)
-        // In production: Let webhooks handle it (Stripe will call backend webhook endpoint)
-        if (isLocalDevelopment) {
-          console.log('🔧 Local/Development mode: Bypassing webhooks, calling API directly');
-          try {
-            if (paymentType === 'deposit' && auctionId && paymentIntentId) {
-              // Confirm deposit payment with backend immediately after Stripe confirms
-              const { auctionApi } = await import('@/services/auction.api');
-              await auctionApi.confirmDepositPayment(auctionId, paymentIntentId);
-              console.log('✅ Deposit payment confirmed and recorded in database');
-            } else if (paymentType === 'order' && orderId) {
-              // For order payments (both auction orders AND regular product orders), call completePayment API
+        // Always call API directly to ensure payment is confirmed immediately
+        // The API endpoint is idempotent (checks if already processed), so it's safe to call even if webhook already processed it
+        // This ensures payment is confirmed even if webhooks are delayed
+        console.log('✅ Payment succeeded, confirming with backend...');
+        try {
+          if (paymentType === 'deposit' && auctionId && paymentIntentId) {
+            // Confirm deposit payment with backend immediately after Stripe confirms
+            const { auctionApi } = await import('@/services/auction.api');
+            await auctionApi.confirmDepositPayment(auctionId, paymentIntentId);
+            console.log('✅ Deposit payment confirmed and recorded in database');
+          } else if (paymentType === 'order' && orderId) {
+            // For auction orders, payment is handled via webhook (no need to call API)
+            // For regular e-commerce orders, call completePayment API
+            // Check if it's an auction order by checking if order has auctionId
+            if (order && !order.auctionId) {
               await orderApi.completePayment(orderId);
               console.log('✅ Order payment completed');
+            } else {
+              console.log('✅ Auction order payment will be processed via webhook');
             }
-          } catch (apiError: any) {
-            console.error('❌ Error confirming payment with backend:', apiError);
+          }
+        } catch (apiError: any) {
+          console.error('❌ Error confirming payment with backend:', apiError);
+          
+          // Check if error is because payment was already processed (idempotent check)
+          const errorMessage = apiError?.response?.data?.message || '';
+          if (errorMessage.includes('already') || errorMessage.includes('alreadyPaid')) {
+            // Payment was already processed (likely by webhook), this is fine
+            console.log('ℹ️ Payment already processed (likely by webhook), proceeding...');
+          } else {
             // Payment succeeded with Stripe but backend confirmation failed
             const errorMsg = apiError?.response?.data?.message || 'Payment succeeded but could not be recorded. Please contact support.';
             setErrorMessage(errorMsg);
@@ -104,14 +109,6 @@ function StripePaymentForm({
             onError(errorMsg);
             return; // Don't proceed to success - payment not recorded
           }
-        } else {
-          // Production: Webhooks will handle payment confirmation
-          // Stripe will call /api/v1/payments/webhook endpoint automatically
-          console.log('🌐 Production mode: Payment will be confirmed via webhook');
-          console.log('📡 Stripe webhook will process payment confirmation automatically');
-          // Give webhook a moment to process (webhooks are usually very fast, typically < 1 second)
-          // Note: In production, webhooks are reliable and will handle both deposit and order payments
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Brief wait for webhook processing
         }
         
         // Small delay to let Stripe Elements clean up before redirecting
@@ -186,35 +183,45 @@ function PaymentPageInner() {
   // Fetch order details if it's an order payment
   useEffect(() => {
     const fetchOrderDetails = async () => {
-      if (paymentType === 'order' && orderId) {
+      if (paymentType === 'order' && orderId && !order) {
         try {
           const response = await orderApi.getById(orderId);
           if (response.success && response.data?.order) {
             setOrder(response.data.order);
-            // Use remainingPayment if available (for auction orders with deposit),
-            // otherwise use totalMinor (for regular orders)
-            const orderAmount = response.data.order.remainingPayment 
-              ? parseFloat(response.data.order.remainingPayment) / 100
+            // Use remainingPayment if available and > 0 (for auction orders with deposit),
+            // otherwise use totalMinor (for regular e-commerce orders)
+            const remainingPayment = response.data.order.remainingPayment 
+              ? parseFloat(response.data.order.remainingPayment) 
+              : 0;
+            const orderAmount = remainingPayment > 0
+              ? remainingPayment / 100
               : parseFloat(response.data.order.totalMinor || '0') / 100;
             setAmount(orderAmount);
           }
         } catch (err) {
           console.error('Error fetching order:', err);
         }
-      } else if (amountParam) {
+      } else if (amountParam && !amount) {
         const amountMinor = parseFloat(amountParam);
         setAmount(amountMinor / 100);
       }
     };
 
     fetchOrderDetails();
-  }, [paymentType, orderId, amountParam]);
+  }, [paymentType, orderId, amountParam]); // Removed order and amount from dependencies to prevent loops
 
   // Create payment intent if not provided
   useEffect(() => {
     const createPaymentIntent = async () => {
-      if (clientSecretParam) {
+      // Don't create if clientSecret already exists
+      if (clientSecret || clientSecretParam) {
         setLoading(false);
+        return;
+      }
+
+      // For order payments, wait for order to be fetched
+      if (paymentType === 'order' && orderId && !order) {
+        // Order is still being fetched, wait for it
         return;
       }
 
@@ -232,19 +239,77 @@ function PaymentPageInner() {
         let currency = 'QAR';
         let description = '';
 
-        if (paymentType === 'order' && orderId && order) {
-          // Use remainingPayment if available (for auction orders with deposit),
-          // otherwise use totalMinor (for regular orders)
-          amountMinor = order.remainingPayment 
-            ? parseFloat(order.remainingPayment)
-            : parseFloat(order.totalMinor || '0');
-          currency = order.currency || 'QAR';
-          description = `Payment for order: ${order.orderNumber}`;
+        if (paymentType === 'order' && orderId) {
+          if (order) {
+            // Check if this is an auction order
+            if (order.auctionId && order.paymentStage) {
+              // Auction order - use the appropriate payment endpoint based on paymentStage
+              let paymentResponse;
+              try {
+                if (order.paymentStage === 'down_payment_required') {
+                  paymentResponse = await orderApi.payDownPayment(orderId);
+                } else if (order.paymentStage === 'final_payment_required') {
+                  paymentResponse = await orderApi.payFinalPayment(orderId);
+                } else if (order.paymentStage === 'full_payment_required') {
+                  paymentResponse = await orderApi.payFullPayment(orderId);
+                } else {
+                  setError('Order is not in a valid payment stage. Please contact support.');
+                  setLoading(false);
+                  return;
+                }
+
+                if (paymentResponse.success && paymentResponse.data?.paymentIntent) {
+                  setClientSecret(paymentResponse.data.paymentIntent.clientSecret);
+                  if (paymentResponse.data.paymentIntent.paymentIntentId) {
+                    setPaymentIntentId(paymentResponse.data.paymentIntent.paymentIntentId);
+                  }
+                  setAmount(parseFloat(paymentResponse.data.paymentIntent.amountMinor || '0') / 100);
+                  setLoading(false);
+                  return;
+                } else {
+                  setError('Failed to create payment intent for auction order');
+                  setLoading(false);
+                  return;
+                }
+              } catch (err: any) {
+                console.error('Error creating auction payment intent:', err);
+                setError(err?.response?.data?.message || 'Failed to initialize payment. Please try again.');
+                setLoading(false);
+                return;
+              }
+            } else {
+              // Regular e-commerce order
+              // Use remainingPayment if available and > 0 (for auction orders with deposit),
+              // otherwise use totalMinor (for regular e-commerce orders)
+              const remainingPayment = order.remainingPayment ? parseFloat(order.remainingPayment) : 0;
+              amountMinor = remainingPayment > 0 
+                ? remainingPayment
+                : parseFloat(order.totalMinor || '0');
+              currency = order.currency || 'QAR';
+              description = `Payment for order: ${order.orderNumber}`;
+            }
+          } else if (amountParam) {
+            // Fallback: use amount from URL if order not loaded yet
+            amountMinor = parseFloat(amountParam);
+            currency = 'QAR';
+            description = `Payment for order`;
+          } else {
+            setError('Missing order information. Please try again.');
+            setLoading(false);
+            return;
+          }
         } else if (paymentType === 'deposit' && auctionId && amountParam) {
           amountMinor = parseFloat(amountParam);
           description = `Deposit for auction`;
         } else {
           setError('Missing required payment information');
+          setLoading(false);
+          return;
+        }
+
+        // Validate amount
+        if (!amountMinor || amountMinor <= 0) {
+          setError('Invalid payment amount. Please contact support.');
           setLoading(false);
           return;
         }
@@ -278,7 +343,7 @@ function PaymentPageInner() {
     };
 
     createPaymentIntent();
-  }, [clientSecretParam, paymentType, orderId, auctionId, amountParam, order, amount]);
+  }, [clientSecretParam, paymentType, orderId, auctionId, amountParam, order]); // Removed amount from dependencies
 
   const handlePaymentSuccess = () => {
     setPaymentSuccess(true);
@@ -294,7 +359,9 @@ function PaymentPageInner() {
     if (paymentSuccess) {
       const timeoutId = setTimeout(() => {
         if (paymentType === 'deposit' && auctionId) {
-          window.location.href = `/car-preview?id=${auctionId}&type=auction`;
+          // Add paymentCompleted parameter to indicate deposit was just paid
+          // This allows the car preview page to wait longer/retry checking deposit status
+          window.location.href = `/car-preview?id=${auctionId}&type=auction&paymentCompleted=true`;
         } else if (paymentType === 'order' && orderId) {
           window.location.href = `/order-history`;
         } else {
@@ -403,6 +470,7 @@ function PaymentPageInner() {
                 auctionId={auctionId}
                 paymentIntentId={paymentIntentId}
                 amount={amount}
+                order={order}
                 onSuccess={handlePaymentSuccess}
                 onError={handlePaymentError}
               />

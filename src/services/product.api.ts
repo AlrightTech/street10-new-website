@@ -51,6 +51,7 @@ export interface ProductFilters {
   category_id?: string;
   subcategory_id?: string;
   vendor_id?: string;
+  superadmin_only?: boolean;
   status?: string;
   page?: number;
   limit?: number;

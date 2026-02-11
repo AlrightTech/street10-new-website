@@ -6,6 +6,7 @@ import { homeApi } from "@/services/home.api";
 import { categoryApi } from "@/services/category.api";
 import type { Product } from "@/services/product.api";
 import type { Category } from "@/services/category.api";
+import ProductCard from "@/components/products/ProductCard";
 
 function Cars() {
   const router = useRouter();
@@ -103,34 +104,7 @@ function Cars() {
     fetchProducts();
   }, [selectedCategoryId, selectedSubcategoryId, selectedFilters]);
 
-  // Transform product data to match the car format
-  const cars = products.map((product) => {
-    const price = parseFloat(product.priceMinor) / 100;
-    // Handle both nested (from home API) and flat (from products API) category structures
-    const categoryName = (product.categories?.[0] as any)?.category?.name 
-      || (product.categories?.[0] as any)?.name 
-      || "General";
-    return {
-      id: product.id,
-      src: product.media?.[0]?.url || "/images/cars/car-1.jpg",
-      bid: `${price.toLocaleString()} QAR`,
-      end: "Available",
-      plate: product.title || "Product",
-      provider: [
-        "Provided by us",
-        categoryName,
-        "In Stock",
-      ],
-    };
-  });
-
-  // Handle product click - navigate to e-commerce product detail page
-  const handleCarClick = (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Navigate to dedicated product detail page for e-commerce products
-    window.location.href = `/product-preview?id=${id}`;
-  };
+  // Products are now used directly with ProductCard component
 
   // Fetch filters for selected category/subcategory (not for "all")
   useEffect(() => {
@@ -279,63 +253,15 @@ function Cars() {
           </button>
         </div>
       )}
-      {/* Cars Grid */}
+      {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full text-center py-10">
             <p className="text-gray-500">Loading products...</p>
           </div>
-        ) : cars.length > 0 ? (
-          cars.map((car, index) => (
-            <div
-              key={car.id || index}
-              onClick={(e) => handleCarClick(e, car.id)}
-              className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow cursor-pointer"
-            >
-              {/* Image Section */}
-              <div className="relative w-full flex-shrink-0">
-                <Image
-                  src={car.src}
-                  alt={`Car ${index + 1}`}
-                  width={400}
-                  height={250}
-                  className="w-full h-56 md:h-64 lg:h-72 object-cover"
-                />
-
-                {/* Top-right badges */}
-                <div className="flex gap-2 absolute top-3 right-3 md:top-4 md:right-4 pointer-events-none z-10">
-                  <Image
-                    src={"/icons/frwrd.svg"}
-                    alt="forward"
-                    width={36}
-                    height={36}
-                  />
-                  <Image
-                    src={"/icons/badge-1.svg"}
-                    alt="badge"
-                    width={36}
-                    height={36}
-                  />
-                </div>
-              </div>
-
-              {/* Car info */}
-              <div className="p-4 border-t mt-auto flex flex-col justify-between">
-                <p className="text-[#333333] font-medium mb-2 sm:mb-3 text-sm sm:text-base">
-                  {car.plate}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {car.provider.map((info, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 text-xs sm:text-sm bg-white rounded-full text-[#666666] shadow-[0px_1px_4px_0px_#0000001A]"
-                    >
-                      {info}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+        ) : products.length > 0 ? (
+          products.map((product) => (
+            <ProductCard key={product.id} product={product} />
           ))
         ) : (
           <div className="col-span-full text-center py-10">

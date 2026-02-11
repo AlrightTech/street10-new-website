@@ -143,23 +143,59 @@ function OrderDetailPageContent() {
           {/* Payment Summary */}
           <div className="space-y-2 text-gray-700 bg-[#F3F5F6] p-4 rounded-lg mt-6">
             <h2 className="text-lg font-semibold mb-2">Payment Summary</h2>
-            <div className="flex justify-between text-sm font-normal">
-              <span>Subtotal</span>
-              <span>{subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
-            </div>
-            {deliveryFee > 0 && (
-              <div className="flex justify-between text-sm font-normal">
-                <span>Delivery</span>
-                <span>{deliveryFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
-              </div>
+            
+            {/* Auction Order Payment Breakdown */}
+            {order.auctionId && order.paymentStage && (
+              <>
+                {order.downPaymentMinor && parseFloat(order.downPaymentMinor) > 0 && (
+                  <div className="flex justify-between text-sm font-normal">
+                    <span>Down Payment</span>
+                    <span className={order.paymentStage === 'down_payment_required' ? 'font-semibold text-[#EE8E32]' : 'text-gray-500'}>
+                      {(parseFloat(order.downPaymentMinor) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}
+                      {order.paymentStage === 'down_payment_required' && ' (Pending)'}
+                      {(order.paymentStage === 'final_payment_required' || order.paymentStage === 'fully_paid') && ' (Paid)'}
+                    </span>
+                  </div>
+                )}
+                {order.remainingPaymentMinor && parseFloat(order.remainingPaymentMinor) > 0 && (
+                  <div className="flex justify-between text-sm font-normal">
+                    <span>Final Payment</span>
+                    <span className={order.paymentStage === 'final_payment_required' ? 'font-semibold text-[#EE8E32]' : 'text-gray-500'}>
+                      {(parseFloat(order.remainingPaymentMinor) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}
+                      {order.paymentStage === 'final_payment_required' && ' (Pending)'}
+                      {order.paymentStage === 'fully_paid' && ' (Paid)'}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t pt-2 mt-2"></div>
+              </>
             )}
+            
+            {/* Regular Order Summary */}
+            {(!order.auctionId || !order.paymentStage) && (
+              <>
+                <div className="flex justify-between text-sm font-normal">
+                  <span>Subtotal</span>
+                  <span>{subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
+                </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-sm font-normal">
+                    <span>Delivery</span>
+                    <span>{deliveryFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
+                  </div>
+                )}
+              </>
+            )}
+            
             <div className="flex justify-between font-semibold text-lg border-t pt-2">
               <span>Total</span>
               <span>{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'QAR'}</span>
             </div>
           </div>
           
-          {order.status === 'created' && (
+          {/* Show payment button for auction orders in payment stages or regular orders in created status */}
+          {((order.auctionId && (order.paymentStage === 'down_payment_required' || order.paymentStage === 'final_payment_required' || order.paymentStage === 'full_payment_required')) || 
+           (!order.auctionId && order.status === 'created')) && (
             <div className="flex justify-end gap-4 pt-6">
               <Link href="/order-history">
                 <button className="text-[#000000] py-3 rounded-lg bg-[#F3F5F6] px-5 cursor-pointer font-semibold hover:bg-gray-200 transition">
@@ -169,7 +205,10 @@ function OrderDetailPageContent() {
               {order.shippingAddress && Object.keys(order.shippingAddress).length > 0 ? (
                 <Link href={`/payment?type=order&orderId=${order.id}&amount=${order.remainingPayment || order.totalMinor}`}>
                   <button className="bg-[#EE8E32] flex gap-2 items-center text-white py-3 rounded-lg px-5 cursor-pointer font-semibold hover:bg-[#d67a1f] transition">
-                    Complete Payment
+                    {order.auctionId && order.paymentStage === 'down_payment_required' && 'Pay Down Payment'}
+                    {order.auctionId && order.paymentStage === 'final_payment_required' && 'Pay Final Payment'}
+                    {order.auctionId && order.paymentStage === 'full_payment_required' && 'Pay Full Payment'}
+                    {!order.auctionId && 'Complete Payment'}
                     <IoIosArrowRoundForward color="white" size={20} />
                   </button>
                 </Link>

@@ -13,12 +13,16 @@ function VendorStoreCard({ vendor }: VendorStoreCardProps) {
   
   // Get vendor category from companyDocs or use a default
   const companyDocs = (vendor as any).companyDocs as any;
-  const vendorCategory = companyDocs?.businessDetails?.category || "General";
-  const vendorDescription = companyDocs?.businessDetails?.description || "Your trusted vendor";
+  const businessDetails = companyDocs?.businessDetails || {};
+  const vendorCategory = businessDetails.category || "General";
+  const vendorDescription = businessDetails.description || businessDetails.storeName || "Your trusted vendor";
+  
+  // Get store name from businessDetails.storeName or fallback to vendor.name
+  const storeName = businessDetails.storeName || vendor.name;
   
   // Get vendor logo/profile image
   const vendorLogo = (vendor as any).profileImageUrl || "/icons/honda.svg";
-  const vendorBanner = companyDocs?.businessDetails?.bannerImage || "/images/vendor-banner.jpg";
+  const vendorBanner = businessDetails.bannerImage || "/images/vendor-banner.jpg";
   
   // Fetch product count for this vendor
   useEffect(() => {
@@ -46,26 +50,33 @@ function VendorStoreCard({ vendor }: VendorStoreCardProps) {
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow">
       {/* Banner Image */}
-      <div className="relative w-full h-48 overflow-hidden">
-        <Image
-          src={vendorBanner}
-          alt={`${vendor.name} banner`}
-          width={400}
-          height={200}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "/images/vendor-banner.jpg";
-          }}
-        />
-        {/* Vendor Logo Overlay */}
-        <div className="absolute bottom-0 left-4 transform translate-y-1/2">
-          <div className="w-20 h-20 rounded-full bg-white p-2 shadow-lg flex items-center justify-center">
+      <div className="relative w-full h-48 mb-10">
+        {/* Banner Image Container */}
+        <div className="absolute inset-0 overflow-hidden rounded-t-xl">
+          <Image
+            src={vendorBanner}
+            alt={`${storeName} banner`}
+            fill
+            className="object-cover"
+            quality={100}
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/images/vendor-banner.jpg";
+            }}
+          />
+        </div>
+        {/* Vendor Logo Overlay - Fixed positioning with proper z-index */}
+        <div className="absolute bottom-0 left-4 transform translate-y-1/2 z-30">
+          <div className="relative w-20 h-20 rounded-full bg-white p-1 shadow-lg flex items-center justify-center overflow-hidden z-30">
             <Image
               src={vendorLogo}
-              alt={vendor.name}
-              width={64}
-              height={64}
-              className="w-full h-full object-contain rounded-full"
+              alt={storeName}
+              fill
+              className="object-cover rounded-full"
+              quality={100}
+              priority
+              sizes="80px"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "/icons/honda.svg";
               }}
@@ -74,11 +85,11 @@ function VendorStoreCard({ vendor }: VendorStoreCardProps) {
         </div>
       </div>
 
-      {/* Vendor Info */}
+      {/* Vendor Info - Adjusted padding since logo is now properly positioned */}
       <div className="p-6 pt-10 flex flex-col flex-grow">
         {/* Vendor Name and Category */}
         <div className="flex items-start justify-between mb-2">
-          <h3 className="text-xl font-bold text-gray-900 flex-1">{vendor.name}</h3>
+          <h3 className="text-xl font-bold text-gray-900 flex-1">{storeName}</h3>
           <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ml-2">
             {vendorCategory}
           </span>

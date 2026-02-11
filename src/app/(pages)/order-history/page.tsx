@@ -13,6 +13,9 @@ interface OrderHistoryItem {
   image: string;
   orderId: string;
   status: string;
+  auctionId?: string;
+  paymentStage?: string;
+  shippingAddress?: any;
 }
 
 export default function OrderHistoryPage() {
@@ -30,6 +33,39 @@ export default function OrderHistoryPage() {
           const total = parseFloat(order.totalMinor) / 100;
           const firstItem = order.items?.[0];
           
+          // For auction orders, use paymentStage for display status, otherwise use order.status
+          let displayStatus = order.status || 'created';
+          if (order.auctionId && order.paymentStage) {
+            // Map payment stage to user-friendly status
+            switch (order.paymentStage) {
+              case 'down_payment_required':
+                displayStatus = 'Down Payment Required';
+                break;
+              case 'final_payment_required':
+                displayStatus = 'Final Payment Required';
+                break;
+              case 'full_payment_required':
+                displayStatus = 'Full Payment Required';
+                break;
+              case 'fully_paid':
+                displayStatus = 'Fully Paid';
+                break;
+              case 'settlement_missed':
+                displayStatus = 'Settlement Missed';
+                break;
+              default:
+                // If paymentStage exists but not recognized, check order.status
+                if (order.status === 'down_payment_paid') {
+                  displayStatus = 'Down Payment Paid - Final Payment Required';
+                } else {
+                  displayStatus = order.status || 'created';
+                }
+            }
+          } else if (order.auctionId && order.status === 'down_payment_paid') {
+            // Handle case where paymentStage might not be set yet but status is updated
+            displayStatus = 'Down Payment Paid - Final Payment Required';
+          }
+          
           return {
             id: order.orderNumber || `#${order.id.slice(-5)}`,
             carName: firstItem?.product?.title || "BMW",
@@ -37,7 +73,11 @@ export default function OrderHistoryPage() {
             price: total,
             image: firstItem?.product?.media?.[0]?.url || "/images/cars/car-1.jpg",
             orderId: order.id,
-            status: order.status || 'created',
+            status: displayStatus,
+            // Include auction order fields for payment button logic
+            auctionId: order.auctionId,
+            paymentStage: order.paymentStage,
+            shippingAddress: order.shippingAddress,
           };
         });
         setOrders(transformedOrders);
@@ -205,14 +245,34 @@ export default function OrderHistoryPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <button
-                          onClick={() => {
-                            window.location.href = `/order-preview?orderId=${order.orderId}`;
-                          }}
-                          className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
-                        >
-                          View Order
-                        </button>
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => {
+                              window.location.href = `/order-preview?orderId=${order.orderId}`;
+                            }}
+                            className="bg-[#EE8E32] hover:bg-[#d87a28] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                          >
+                            View Order
+                          </button>
+                          {/* Show checkout button for auction orders that need payment */}
+                          {order.auctionId && 
+                           (order.paymentStage === 'down_payment_required' || 
+                            order.paymentStage === 'final_payment_required' || 
+                            order.paymentStage === 'full_payment_required') && 
+                           order.shippingAddress && 
+                           Object.keys(order.shippingAddress).length > 0 && (
+                            <button
+                              onClick={() => {
+                                window.location.href = `/payment?type=order&orderId=${order.orderId}`;
+                              }}
+                              className="bg-[#4C50A2] hover:bg-[#3d4080] text-white px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                            >
+                              {order.paymentStage === 'down_payment_required' && 'Pay Down Payment'}
+                              {order.paymentStage === 'final_payment_required' && 'Pay Final Payment'}
+                              {order.paymentStage === 'full_payment_required' && 'Pay Full Payment'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

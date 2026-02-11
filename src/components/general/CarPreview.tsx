@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { CiCirclePlus } from "react-icons/ci";
 import { CiCircleMinus } from "react-icons/ci";
@@ -15,7 +15,7 @@ import type { Product } from "@/services/product.api";
 interface Car {
   id: number;
   name: string;
-  status: "Ready" | "Sold" | "Pending" | "Live" | "Ended" | "Settled";
+  status: "Ready" | "Sold" | "ReadyToBuy" | "Pending" | "Live" | "Ended" | "Settled" | "Scheduled";
   lastBid: string;
   bidder: string;
   timeLeft: string;
@@ -48,6 +48,10 @@ interface Car {
 type UserStatus = 'not_logged_in' | 'registered' | 'verification_pending' | 'verified';
 
 const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const paymentCompleted = searchParams?.get('paymentCompleted') === 'true';
+  
   // Use local state for car to allow real-time updates
   const [car, setCar] = useState<Car>(initialCar);
   const [selectedImage, setSelectedImage] = useState(initialCar.images[0]);
@@ -63,7 +67,27 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
   const [auctionEnded, setAuctionEnded] = useState<boolean>(false);
   const [endAtTime, setEndAtTime] = useState<string | null>(initialCar.type === 'auction' && initialCar.auction?.endAt ? initialCar.auction.endAt : null);
   const [lastBidNotificationTime, setLastBidNotificationTime] = useState<number>(0); // Track last notification to prevent duplicates
-  const [winnerInfo, setWinnerInfo] = useState<{ name: string; userId: string } | null>(null); // Store winner information
+  
+  // Initialize winner info from auction data if available
+  const getInitialWinnerInfo = () => {
+    if (initialCar.type === 'auction' && initialCar.auction) {
+      const auction = initialCar.auction;
+      const winningBid = (auction as any).winningBid;
+      const reservePriceMet = (auction as any).reservePriceMet;
+      const state = auction.state;
+      
+      // If auction has ended and there's a winning bid with reserve price met
+      if ((state === 'ended' || state === 'settled') && winningBid && reservePriceMet !== false) {
+        return {
+          name: winningBid.bidderName || winningBid.user?.name || winningBid.user?.email?.split('@')[0] || 'Winner',
+          userId: winningBid.userId || winningBid.user?.id || '',
+        };
+      }
+    }
+    return null;
+  };
+  
+  const [winnerInfo, setWinnerInfo] = useState<{ name: string; userId: string } | null>(getInitialWinnerInfo()); // Store winner information
   // 0=normal images, 1=red preview, 2=number plate preview, 3=back to normal after bid
 
   // --- Bid increment & minimum bid calculation based on auction data ---
@@ -162,12 +186,15 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
 
   // Check if deposit is already paid when component loads (for auctions)
   useEffect(() => {
-    const checkDepositStatus = async () => {
+    const checkDepositStatus = async (retryCount = 0) => {
       if (car.type !== 'auction' || !car.auction?.id || userStatus !== 'verified') {
         return;
       }
 
-      // Add a small delay to ensure deposit is recorded after payment redirect
+      // If payment was just completed, wait longer and retry if needed
+      const initialDelay = paymentCompleted ? 2000 : 500; // Longer delay if payment just completed
+      const maxRetries = paymentCompleted ? 3 : 0; // Retry up to 3 times if payment just completed
+
       const delay = setTimeout(async () => {
         try {
           const { auctionApi } = await import('@/services/auction.api');
@@ -178,8 +205,18 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
           if (response.data?.alreadyPaid) {
             setStep(3);
             setBidStep(0); // Reset bid step to show bidding form
+            
+            // Remove paymentCompleted parameter from URL after successful check
+            if (paymentCompleted) {
+              const newUrl = window.location.pathname + window.location.search.replace(/[?&]paymentCompleted=true/, '').replace(/^&/, '?');
+              window.history.replaceState({}, '', newUrl || window.location.pathname);
+            }
+          } else if (retryCount < maxRetries) {
+            // Retry checking deposit status (payment might still be processing)
+            console.log(`Retrying deposit check (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+            setTimeout(() => checkDepositStatus(retryCount + 1), 1000); // Retry after 1 second
           } else if (car.auction?.state === 'live') {
-            // Only show deposit step if auction is live
+            // Only show deposit step if auction is live and deposit not found after retries
             setStep(2);
           }
         } catch (error: any) {
@@ -189,16 +226,21 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
             if (car.auction?.state !== 'live') {
               setStep(1); // Show message that auction is not live
             }
+          } else if (retryCount < maxRetries) {
+            // Retry on error if payment was just completed
+            console.log(`Retrying deposit check after error (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+            setTimeout(() => checkDepositStatus(retryCount + 1), 1000);
+          } else {
+            console.log('Deposit check:', error?.response?.data?.message || 'Not checked');
           }
-          console.log('Deposit check:', error?.response?.data?.message || 'Not checked');
         }
-      }, 500); // Small delay to ensure backend has processed deposit
+      }, initialDelay);
 
       return () => clearTimeout(delay);
     };
 
     checkDepositStatus();
-  }, [car.type, car.auction?.id, userStatus, car.auction?.state]);
+  }, [car.type, car.auction?.id, userStatus, car.auction?.state, paymentCompleted]);
 
   // Update endAtTime when car.auction.endAt changes
   useEffect(() => {
@@ -262,10 +304,16 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
   // WebSocket connection for real-time bidding updates
   useEffect(() => {
     if (car.type !== 'auction' || !car.auction?.id) return;
+    
+    // Don't connect WebSocket if auction has ended - no need for real-time updates
+    if (auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled') {
+      return;
+    }
 
     let socket: any = null;
     let isConnected = false;
     let reconnectTimeout: NodeJS.Timeout | null = null;
+    const auctionId = car.auction.id; // Capture auction ID to avoid stale closures
 
     const connectWebSocket = async () => {
       try {
@@ -283,9 +331,9 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
         });
 
         const joinAuctionRoom = () => {
-          if (socket && socket.connected && car.auction?.id) {
-            socket.emit('join_auction', car.auction.id);
-            console.log('✅ Joined auction room:', car.auction.id);
+          if (socket && socket.connected && auctionId) {
+            socket.emit('join_auction', auctionId);
+            console.log('✅ Joined auction room:', auctionId);
           }
         };
 
@@ -361,30 +409,84 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
         socket.on('auction_status_changed', (data: any) => {
           console.log('📢 Received auction_status_changed:', data);
           if (data.auctionId === car.auction?.id && data.state) {
+            // Calculate status based on state and reservePriceMet
+            const calculateStatus = (state: string, reservePriceMet?: boolean) => {
+              switch (state) {
+                case "scheduled":
+                  return "Scheduled";
+                case "live":
+                  // If reserve price not met, show "Pending", otherwise "Ready"
+                  return reservePriceMet === false ? "Pending" : "Ready";
+                case "ended":
+                  // Check if reserve price was met (if reservePriceMet is false, show "Ended", otherwise check if has bid)
+                  return reservePriceMet === false ? "Ended" : "ReadyToBuy";
+                case "settled":
+                  return "ReadyToBuy";
+                default:
+                  return "Pending";
+              }
+            };
+            
             // Update car status in real-time - use single state update to ensure re-render
             setCar((prevCar: any) => {
+              const reservePriceMet = data.reservePriceMet !== undefined ? data.reservePriceMet : prevCar.auction?.reservePriceMet;
+              const order = prevCar.auction?.order || data.order; // Get order from car or event data
+              const calculatedStatus = calculateStatus(data.state, reservePriceMet);
+              
+              // Also check time to ensure status is correct even if backend is slightly delayed
+              const now = new Date();
+              const endDate = prevCar.auction?.endAt ? new Date(prevCar.auction.endAt) : null;
+              let finalStatus = calculatedStatus;
+              
+              // If time has passed but state is still live, override to ended
+              if (data.state === 'live' && endDate && now >= endDate) {
+                finalStatus = reservePriceMet === false ? "Ended" : "ReadyToBuy";
+              }
+              
+              // Update winner info if available in event data (from settlement)
+              if (data.winner && reservePriceMet !== false) {
+                setWinnerInfo({
+                  name: data.winner.name || data.winner.email?.split('@')[0] || 'Winner',
+                  userId: data.winner.userId || data.winner.id || '',
+                });
+              } else if (reservePriceMet === false) {
+                setWinnerInfo(null);
+              }
+              
               const updatedCar = {
                 ...prevCar,
                 auction: {
                   ...prevCar.auction,
                   state: data.state,
+                  reservePriceMet: reservePriceMet,
+                  order: order || prevCar.auction?.order, // Preserve order if exists
+                  winningBid: data.winningBid || prevCar.auction?.winningBid, // Preserve winning bid if exists
                 },
-                status: data.status || prevCar.status,
+                status: finalStatus,
               };
               
-              // Update reservePriceMet if provided
-              if (data.reservePriceMet !== undefined) {
-                updatedCar.reservePriceMet = data.reservePriceMet;
-              }
-              
-              console.log('🔄 Updated car status:', updatedCar.status, 'state:', updatedCar.auction?.state, 'reservePriceMet:', data.reservePriceMet);
+              console.log('🔄 Updated car status:', updatedCar.status, 'state:', updatedCar.auction?.state, 'reservePriceMet:', reservePriceMet, 'order:', order, 'winnerInfo:', winnerInfo);
               return updatedCar;
             });
+            
+            // If auction started (became live), update endAtTime if provided
+            if (data.state === 'live' && data.endAt) {
+              setEndAtTime(data.endAt);
+            }
             
             // If auction ended, trigger the same logic as auction_ended event
             if (data.state === 'ended' || data.state === 'settled') {
               setAuctionEnded(true);
               setTimeLeft('00:00:00');
+              
+              // If reserve price not met, clear winner info
+              if (data.reservePriceMet === false) {
+                setWinnerInfo(null);
+              }
+              
+              // Keep step at 3 to show winner message, not verification message
+              setStep(3);
+              setBidStep(3);
             }
           }
         });
@@ -420,19 +522,34 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
           setTimeLeft('00:00:00');
           
           // Store winner information for display
-          if (data.winner && data.reservePriceMet) {
+          // Check multiple possible formats for winner data
+          const winner = data.winner || (data.winningBid && data.winningBid.user) || null;
+          if (winner && data.reservePriceMet !== false) {
             setWinnerInfo({
-              name: data.winner.name || data.winner.email?.split('@')[0] || 'Winner',
-              userId: data.winner.userId,
+              name: winner.name || winner.email?.split('@')[0] || data.winningBid?.bidderName || 'Winner',
+              userId: winner.userId || winner.id || data.winningBid?.userId || '',
             });
-          } else {
+          } else if (data.reservePriceMet === false) {
+            // No winner if reserve price not met
             setWinnerInfo(null);
+          } else {
+            // Try to get winner from auction data if not in event
+            const auction = car.auction;
+            const winningBid = (auction as any)?.winningBid;
+            if (winningBid) {
+              setWinnerInfo({
+                name: winningBid.bidderName || winningBid.user?.name || winningBid.user?.email?.split('@')[0] || 'Winner',
+                userId: winningBid.userId || winningBid.user?.id || '',
+              });
+            } else {
+              setWinnerInfo(null);
+            }
           }
           
-          // Update status to "Sold" if reserve price met, otherwise "Ended"
+          // Update status: "ReadyToBuy" if reserve price met (not "Sold" until fully paid), otherwise "Ended"
           setCar((prevCar: any) => ({
             ...prevCar,
-            status: data.reservePriceMet ? 'Sold' : 'Ended',
+            status: data.reservePriceMet ? 'ReadyToBuy' : 'Ended',
             auction: {
               ...prevCar.auction,
               state: 'ended',
@@ -440,8 +557,9 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
           }));
           
           // Disable bidding by updating step (hide bid form)
-          setStep(1);
-          setBidStep(0);
+          // Keep step at 3 to show winner message, not verification message
+          setStep(3);
+          setBidStep(3);
           
           // Check if current user is winner
           const userStr = localStorage.getItem('user');
@@ -455,20 +573,18 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
               console.log('👤 Current user ID:', userId, 'Winner ID:', winnerUserId);
               
               if (data.winner && userId === winnerUserId) {
-                // User won - show success and redirect to address/checkout page
-                console.log('🎉 User won! Redirecting to address page...');
+                // User won - show notification (TopHeader will show banner)
+                console.log('🎉 User won! Showing notification...');
                 setTimeout(() => {
-                  toast.success('🎉 Congratulations! You won the auction!', { duration: 3000 });
-                  setTimeout(() => {
-                    // Redirect to address page where user can fill address and see cart
-                    if (data.orderId) {
-                      window.location.href = `/address?orderId=${data.orderId}`;
-                    } else {
-                      // Fallback: try to get order from API
-                      window.location.href = '/address';
+                  toast.success('🎉 Congratulations! You won the auction! Please submit deposit or final payment within the settlement period, or visit the office.', { 
+                    duration: 8000,
+                    style: {
+                      fontSize: '16px',
+                      padding: '16px',
                     }
-                  }, 2000);
+                  });
                 }, 500);
+                // Don't redirect - user can proceed via TopHeader banner or order history
               } else if (data.winner) {
                 // Someone else won
                 setTimeout(() => {
@@ -505,11 +621,15 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
           console.log('🎉 Received auction_won event:', data);
           if (data.orderId) {
             setTimeout(() => {
-              toast.success('🎉 Congratulations! You won the auction!', { duration: 3000 });
-              setTimeout(() => {
-                window.location.href = `/address?orderId=${data.orderId}`;
-              }, 2000);
+              toast.success('🎉 Congratulations! You won the auction! Please submit deposit or final payment within the settlement period, or visit the office.', { 
+                duration: 8000,
+                style: {
+                  fontSize: '16px',
+                  padding: '16px',
+                }
+              });
             }, 500);
+            // Don't redirect - user can proceed via TopHeader banner or order history
           }
         });
 
@@ -534,12 +654,13 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
         clearTimeout(reconnectTimeout);
       }
       if (socket) {
-        socket.emit('leave_auction', car.auction?.id);
+        socket.emit('leave_auction', auctionId);
         socket.removeAllListeners(); // Remove all listeners to prevent memory leaks
         socket.disconnect();
       }
     };
-  }, [car.type, car.auction?.id, lastBidNotificationTime]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [car.type, car.auction?.id, auctionEnded]); // Only reconnect if auction ID changes or auction ends
 
   const handlePlaceBid = async () => {
     // Check if auction has ended
@@ -658,7 +779,18 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
 
   const handlePayDeposit = async () => {
     if (!car.auction?.id) {
-      alert('Auction ID is missing');
+      toast.error('Auction ID is missing');
+      return;
+    }
+
+    // Check if auction is live before attempting to pay deposit
+    if (car.auction?.state !== 'live') {
+      const stateMessage = car.auction?.state === 'scheduled' 
+        ? 'This auction is scheduled and has not started yet. Please wait for the auction to go live.'
+        : car.auction?.state === 'ended' || car.auction?.state === 'settled'
+        ? 'This auction has ended. Deposits can only be paid for live auctions.'
+        : `This auction is not live. Current status: ${car.auction?.state}. You can only pay deposit for live auctions.`;
+      toast.error(stateMessage, { duration: 6000 });
       return;
     }
 
@@ -694,14 +826,14 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
       }
     } catch (error: any) {
       console.error('Error paying deposit:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to process deposit payment.';
+      // Backend returns error in error.error.message structure
+      const errorMessage = error?.response?.data?.error?.message 
+        || error?.response?.data?.message 
+        || error?.message 
+        || 'Failed to process deposit payment.';
       
-      // Check if it's a Stripe configuration error
-      if (errorMessage.includes('Stripe') || errorMessage.includes('payment') || errorMessage.includes('configured')) {
-        alert('Payment system is not properly configured. Please contact support.');
-      } else {
-        alert(errorMessage + ' Please try again.');
-      }
+      // Show user-friendly error message using toast
+      toast.error(errorMessage, { duration: 5000 });
     } finally {
       setLoading(false);
     }
@@ -788,8 +920,10 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
                     className={`text-sm font-medium ms-4 ${
                       car.status === "Ready" || car.status === "Live"
                         ? "text-[#038001]"
-                        : car.status === "Sold" || car.status === "Ended" || car.status === "Settled"
+                        : car.status === "Sold" || car.status === "ReadyToBuy" || car.status === "Ended" || car.status === "Settled"
                         ? "text-red-600"
+                        : car.status === "Scheduled"
+                        ? "text-blue-600"
                         : "text-[#ee8e31]"
                     }`}
                   >
@@ -826,7 +960,21 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
                 {/* Step Flow - Show Register/Verify button for non-verified users */}
                 {step === 1 && (
                   <div className="bg-white rounded-xl shadow py-7 px-5 mt-3">
-                    {userStatus === 'not_logged_in' ? (
+                    {/* If auction has ended, show appropriate message instead of verify button */}
+                    {auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled' ? (
+                      <div className="text-center py-4">
+                        {/* If there's a winner (reserve price met), show winner message */}
+                        {winnerInfo && car.auction?.reservePriceMet !== false ? (
+                          <p className="text-green-600 font-medium">
+                            This auction has ended. <span className="font-bold">{winnerInfo.name}</span> has won this auction.
+                          </p>
+                        ) : car.auction?.reservePriceMet === false || (car.status === 'Ended' && !winnerInfo) ? (
+                          <p className="text-red-600 font-medium">This auction has ended. No winner - reserve price was not met.</p>
+                        ) : (
+                          <p className="text-red-600 font-medium">This auction has ended. Bidding is no longer allowed.</p>
+                        )}
+                      </div>
+                    ) : userStatus === 'not_logged_in' ? (
                       <>
                         <p className="text-gray-700 text-sm mb-3">
                           You must register first to interact with this product
@@ -859,23 +1007,49 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
 
                 {step === 2 && (
                   <div className="bg-white rounded-xl shadow py-7 px-5 mt-3">
-                    <p className="text-gray-700 text-sm mb-3">
-                      You have to pay a deposit to be able to bid on any item
-                    </p>
-                    <button
-                      onClick={handlePayDeposit}
-                      disabled={loading}
-                      className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {loading ? <Loader size="sm" color="#ffffff" /> : null}
-                      {loading ? "Processing..." : (() => {
-                        // Get deposit amount from auction (stored in minor units as string)
-                        const depositAmount = car.auction?.depositAmount 
-                          ? (parseFloat(car.auction.depositAmount) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                          : '200';
-                        return `Pay Deposit (${depositAmount} QAR)`;
-                      })()}
-                    </button>
+                    {/* If auction has ended, show appropriate message instead of deposit message */}
+                    {auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled' ? (
+                      <div className="text-center py-4">
+                        {/* If there's a winner (reserve price met), show winner message */}
+                        {winnerInfo && car.auction?.reservePriceMet !== false ? (
+                          <p className="text-green-600 font-medium">
+                            This auction has ended. <span className="font-bold">{winnerInfo.name}</span> has won this auction.
+                          </p>
+                        ) : car.auction?.reservePriceMet === false || (car.status === 'Ended' && !winnerInfo) ? (
+                          <p className="text-red-600 font-medium">This auction has ended. No winner - reserve price was not met.</p>
+                        ) : (
+                          <p className="text-red-600 font-medium">This auction has ended. Bidding is no longer allowed.</p>
+                        )}
+                      </div>
+                    ) : car.auction?.state !== 'live' ? (
+                      <div className="text-center py-4">
+                        <p className="text-gray-700 text-sm mb-2">
+                          {car.auction?.state === 'scheduled' 
+                            ? 'This auction is scheduled and has not started yet. Please wait for the auction to go live before paying the deposit.'
+                            : `This auction is not live. Current status: ${car.auction?.state}. You can only pay deposit for live auctions.`}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-gray-700 text-sm mb-3">
+                          You have to pay a deposit to be able to bid on any item
+                        </p>
+                        <button
+                          onClick={handlePayDeposit}
+                          disabled={loading}
+                          className="bg-[#ee8e31] cursor-pointer text-white w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {loading ? <Loader size="sm" color="#ffffff" /> : null}
+                          {loading ? "Processing..." : (() => {
+                            // Get deposit amount from auction (stored in minor units as string)
+                            const depositAmount = car.auction?.depositAmount 
+                              ? (parseFloat(car.auction.depositAmount) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                              : '200';
+                            return `Pay Deposit (${depositAmount} QAR)`;
+                          })()}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -883,10 +1057,13 @@ const CarPreview: React.FC<{ car: Car }> = ({ car: initialCar }) => {
                   <div className="bg-white rounded-xl shadow py-7 px-5 mt-3">
                     {auctionEnded || car.auction?.state === 'ended' || car.auction?.state === 'settled' ? (
                       <div className="text-center py-4">
-                        {winnerInfo && car.status === 'Sold' ? (
+                        {/* If there's a winner (reserve price met), show winner message */}
+                        {winnerInfo && car.auction?.reservePriceMet !== false ? (
                           <p className="text-green-600 font-medium">
                             This auction has ended. <span className="font-bold">{winnerInfo.name}</span> has won this auction.
                           </p>
+                        ) : car.auction?.reservePriceMet === false || (car.status === 'Ended' && !winnerInfo) ? (
+                          <p className="text-red-600 font-medium">This auction has ended. No winner - reserve price was not met.</p>
                         ) : (
                           <p className="text-red-600 font-medium">This auction has ended. Bidding is no longer allowed.</p>
                         )}

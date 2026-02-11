@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { resetUser } from "@/redux/authSlice";
 import { toast } from "react-hot-toast";
 import { settingsApi } from "@/services/settings.api";
+import { useCart } from "@/contexts/CartContext";
 
 const languages = [
   { code: "en", name: "English", flag: "https://flagcdn.com/w80/gb.png" },
@@ -37,6 +38,7 @@ const Header = () => {
   const langRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const { cartCount } = useCart();
 
   // Determine active tab based on pathname
   const getActiveTab = () => {
@@ -386,6 +388,41 @@ const Header = () => {
             </div>
           )}
         </div>
+
+        {/* Cart */}
+        <a
+          href="/cart"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = "/cart";
+          }}
+          className="relative flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 cursor-pointer hover:bg-gray-200 transition"
+        >
+          <Image
+            className="w-5 h-5"
+            src={"/icons/buyBag.svg"}
+            alt={"Cart"}
+            width={20}
+            height={20}
+            onError={(e) => {
+              // Fallback to a simple cart icon if image doesn't exist
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+              target.parentElement!.innerHTML = `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 18C5.9 18 5.01 18.9 5.01 20C5.01 21.1 5.9 22 7 22C8.1 22 9 21.1 9 20C9 18.9 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5.48C20.96 5.34 21 5.17 21 5C21 4.45 20.55 4 20 4H5.21L4.27 2H1ZM17 18C15.9 18 15.01 18.9 15.01 20C15.01 21.1 15.9 22 17 22C18.1 22 19 21.1 19 20C19 18.9 18.1 18 17 18Z" fill="currentColor"/>
+                </svg>
+              `;
+            }}
+          />
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#ee8e31] rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+              <span className="text-white text-xs font-bold">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            </span>
+          )}
+        </a>
 
         {/* Profile */}
         <div ref={profileRef} className="relative">

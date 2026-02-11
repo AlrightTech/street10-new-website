@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Favicon from "@/components/Favicon";
 import PromotionalPopup from "@/components/ui/PromotionalPopup";
+import TopHeader from "@/components/home/TopHeader";
 import { usePathname } from "next/navigation";
 import { PageLoader } from "@/components/ui/loader";
 
@@ -45,6 +46,8 @@ export default function RootLayoutWrapper({ children }: { children: React.ReactN
     <div className="relative min-h-screen flex flex-col">
       <Favicon />
       {loading && isInitialLoad && <PageLoader />}
+      {/* Winner Banner - Above Header */}
+      <TopHeader />
       <header className="flex-shrink-0">
         <Header />
       </header>

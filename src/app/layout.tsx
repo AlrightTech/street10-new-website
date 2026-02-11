@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Urbanist } from "next/font/google";
 import { StoreProvider } from "../../providers/StoreProvider";
+import { CartProvider } from "@/contexts/CartContext";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import RootLayoutWrapper from "./RootLayoutWrapper";
@@ -28,7 +29,9 @@ export default function RootLayout({
     >
       <body className="font-[var(--font-urbanist)]">
         <StoreProvider>
-          <RootLayoutWrapper>{children}</RootLayoutWrapper>
+          <CartProvider>
+            <RootLayoutWrapper>{children}</RootLayoutWrapper>
+          </CartProvider>
         </StoreProvider>
         <Toaster position="top-right" />
       </body>

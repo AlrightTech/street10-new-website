@@ -136,5 +136,35 @@ export const userApi = {
     });
     return response.data as any;
   },
+
+  /**
+   * Get active auction winner settlement (for winner banner)
+   */
+  getAuctionWinner: async (): Promise<{
+    success: boolean;
+    data: {
+      winnerSettlement: {
+        orderId: string;
+        orderNumber: string;
+        auctionId: string;
+        productTitle: string;
+        productImageUrl: string | null;
+        paymentStage: string;
+        settlementDueAt: string;
+        downPaymentMinor: string;
+        remainingPaymentMinor: string;
+        totalMinor: string;
+        timeRemaining: {
+          days: number;
+          hours: number;
+          minutes: number;
+          expired: boolean;
+        };
+      } | null;
+    };
+  }> => {
+    const response = await proxyClient.get<ApiResponse<{ winnerSettlement: any }>>("/api/proxy/users/me/auction-winner");
+    return response.data as any;
+  },
 };
 
