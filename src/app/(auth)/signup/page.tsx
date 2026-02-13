@@ -1,18 +1,31 @@
 "use client";
-import Image from "next/image";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { authApi } from "@/services/auth.api";
+import { loginScreenApi } from "@/services/login-screen.api";
 import Link from "next/link";
 import { FiUpload, FiX } from "react-icons/fi";
+
+const DEFAULT_BACKGROUND = "/images/street/build-your-account.png";
 
 export default function SignupPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"customer" | "vendor">("customer");
   const [loading, setLoading] = useState(false);
   const [showCustomerPassword, setShowCustomerPassword] = useState(false);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(DEFAULT_BACKGROUND);
   const customerImageInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchBackground = async () => {
+      const screen = await loginScreenApi.getActiveLoginScreen("registration");
+      if (screen?.backgroundUrl) {
+        setBackgroundImageUrl(screen.backgroundUrl);
+      }
+    };
+    fetchBackground();
+  }, []);
   
   // Customer Form State
   const [customerData, setCustomerData] = useState({
@@ -291,15 +304,12 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#efefef] flex items-center justify-center relative overflow-hidden py-10">
-      <div className="absolute -top-10 bg-[#efefef] w-full h-full z-10">
-        <Image
-          src="/images/street/build-your-account.png"
-          alt="background"
-          fill
-          priority
-          className="object-cover opacity-20"
-        />
-      </div>
+      <div
+        className="absolute -top-10 bg-[#efefef] w-full h-full z-10 bg-cover bg-center opacity-20"
+        style={{
+          backgroundImage: `url(${backgroundImageUrl})`,
+        }}
+      />
 
       <div className="relative z-20 w-full max-w-md px-4">
         <div className="bg-white rounded-xl shadow-xl p-8">

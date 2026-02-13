@@ -1,19 +1,32 @@
 "use client";
-import Image from "next/image";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { authApi } from "@/services/auth.api";
+import { loginScreenApi } from "@/services/login-screen.api";
 import Link from "next/link";
+
+const DEFAULT_BACKGROUND = "/images/street/build-your-account.png";
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(DEFAULT_BACKGROUND);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  useEffect(() => {
+    const fetchBackground = async () => {
+      const screen = await loginScreenApi.getActiveLoginScreen("website_login");
+      if (screen?.backgroundUrl) {
+        setBackgroundImageUrl(screen.backgroundUrl);
+      }
+    };
+    fetchBackground();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -72,15 +85,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#efefef] flex items-center justify-center relative overflow-hidden">
-      <div className="absolute -top-10 bg-[#efefef] w-full h-full z-10">
-        <Image
-          src="/images/street/build-your-account.png"
-          alt="background"
-          fill
-          priority
-          className="object-cover opacity-20"
-        />
-      </div>
+      <div
+        className="absolute -top-10 bg-[#efefef] w-full h-full z-10 bg-cover bg-center opacity-20"
+        style={{
+          backgroundImage: `url(${backgroundImageUrl})`,
+        }}
+      />
 
       <div className="relative z-20 w-full max-w-md px-4">
         <div className="bg-white rounded-xl shadow-xl p-8">
